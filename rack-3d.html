@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>3D Rack — Motion Design</title>
+<style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    html, body { height:100%; overflow:hidden; background:#05060a; font-family:'Segoe UI',sans-serif; color:#fff; }
+    #canvas { display:block; width:100%; height:100%; cursor:grab; }
+    #canvas:active { cursor:grabbing; }
+
+    .ui {
+        position:fixed; top:20px; left:20px; z-index:10;
+        background:rgba(10,12,20,0.85);
+        backdrop-filter:blur(12px);
+        border:1px solid rgba(233,69,96,0.3);
+        border-radius:12px; padding:16px 20px;
+        max-width:340px;
+    }
+    .ui h1 { font-size:1.05em; color:#e94560; margin-bottom:6px; letter-spacing:1px; }
+    .ui p { font-size:0.78em; color:#8a92a8; line-height:1.5; }
+    .ui .hint { margin-top:10px; font-size:0.72em; color:#556; }
+
+    .controls {
+        position:fixed; bottom:20px; left:20px; z-index:10;
+        display:flex; gap:8px; flex-wrap:wrap; max-width:520px;
+    }
+    .ctrl-btn {
+        background:rgba(15,20,35,0.85);
+        backdrop-filter:blur(8px);
+        color:#cde;
+        border:1px solid rgba(74,144,226,0.3);
+        padding:8px 14px;
+        border-radius:8px;
+        font-size:0.78em;
+        cursor:pointer;
+        transition: all 0.2s;
+    }
+    .ctrl-btn:hover { background:rgba(74,144,226,0.3); border-color:#4a90e2; }
+    .ctrl-btn.active { background:#e94560; border-color:#e94560; color:#fff; }
+
+    .info-panel {
+        position:fixed; top:20px; right:20px; z-index:10;
+        background:rgba(10,12,20,0.85);
+        backdrop-filter:blur(12px);
+        border:1px solid rgba(74,144,226,0.3);
+        border-radius:12px; padding:14px 18px;
+        min-width:240px;
+        display:none;
+    }
+    .info-panel.visible { display:block; }
+    .info-panel h3 { color:#4a90e2; font-size:0.95em; margin-bottom:8px; }
+    .info-panel .tag { display:inline-block; background:#1a3a5a; color:#7ab; padding:2px 8px; border-radius:3px; font-size:0.72em; margin-bottom:8px; }
+    .info-panel .info-row { font-size:0.78em; color:#aab; margin:3px 0; }
+    .info-panel .info-row b { color:#e94560; }
+
+    .legend {
+        position:fixed; bottom:20px; right:20px; z-index:10;
+        background:rgba(10,12,20,0.85);
+        backdrop-filter:blur(12px);
+        border:1px solid rgba(255,255,255,0.1);
+        border-radius:12px; padding:12px 16px;
+        font-size:0.72em;
+    }
+    .legend-item { display:flex; align-items:center; gap:8px; margin:3px 0; }
+    .legend-dot { width:14px; height:3px; border-radius:2px; }
+
+    #loadingScreen {
+        position:fixed; inset:0; background:#05060a;
+        display:flex; flex-direction:column; align-items:center; justify-content:center;
+        z-index:100; transition:opacity 0.6s;
+    }
+    .spinner {
+        width:60px; height:60px; border:3px solid #1a2030;
+        border-top-color:#e94560; border-radius:50%;
+        animation:spin 1s linear infinite;
+        margin-bottom:20px;
+    }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    #loadingScreen p { color:#8a92a8; font-size:0.9em; letter-spacing:2px; }
+
+    .stats {
+        position:fixed; top:20px; left:50%; transform:translateX(-50%);
+        z-index:10; display:flex; gap:20px;
+        background:rgba(10,12,20,0.85); backdrop-filter:blur(8px);
+        padding:8px 18px; border-radius:30px;
+        border:1px solid rgba(255,255,255,0.08);
+        font-size:0.75em;
+    }
+    .stat { display:flex; gap:6px; align-items:center; }
+    .stat-val { color:#e94560; font-weight:bold; }
+    .stat-label { color:#667; }
+</style>
+</head>
+<body>
+
+<div id="loadingScreen">
+    <div class="spinner"></div>
+    <p>ЗАГРУЗКА 3D СЦЕНЫ...</p>
+</div>
+
+<canvas id="canvas"></canvas>
+
+<div class="ui">
+    <h1>⬡ TOPOLOGIA 3D</h1>
+    <p>Интерактивная 3D-визуализация серверной стойки. Кликните на устройство для подробностей.</p>
+    <div class="hint">🖱 Левая кнопка — вращение | Правая — панорама | Колесо — зум</div>
+</div>
+
+<div class="stats">
+    <div class="stat"><span class="stat-label">Устройств:</span><span class="stat-val" id="deviceCount">0</span></div>
+    <div class="stat"><span class="stat-label">Подключений:</span><span class="stat-val" id="connCount">0</span></div>
+    <div class="stat"><span class="stat-label">FPS:</span><span class="stat-val" id="fps">60</span></div>
+</div>
+
+<div class="info-panel" id="infoPanel">
+    <h3 id="infoName"></h3>
+    <span class="tag" id="infoTag"></span>
+    <div class="info-row" id="infoDesc"></div>
+    <div class="info-row" id="infoPorts"></div>
+    <div class="info-row" id="infoConns"></div>
+</div>
+
+<div class="controls">
+    <button class="ctrl-btn active" id="btnRotate" onclick="toggleAutoRotate()">⟳ Авто-вращение</button>
+    <button class="ctrl-btn" onclick="resetCamera()">⌂ Сброс</button>
+    <button class="ctrl-btn active" id="btnCables" onclick="toggleCables()">⚡ Кабели</button>
+    <button class="ctrl-btn active" id="btnLabels" onclick="toggleLabels()">🏷 Метки</button>
+    <button class="ctrl-btn" id="btnExplode" onclick="toggleExplode()">💥 Разнести</button>
+    <button class="ctrl-btn" onclick="loadConnections()">📂 Загрузить связи</button>
+</div>
+
+<div class="legend">
+    <div class="legend-item"><span class="legend-dot" style="background:#4a90e2"></span>Сетевое</div>
+    <div class="legend-item"><span class="legend-dot" style="background:#9c27b0"></span>Broadcast</div>
+    <div class="legend-item"><span class="legend-dot" style="background:#4caf50"></span>Ресиверы</div>
+    <div class="legend-item"><span class="legend-dot" style="background:#ff9800"></span>Серверы</div>
+    <div class="legend-item"><span class="legend-dot" style="background:#888"></span>AV/Прочее</div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+// ============================================================
+// EQUIPMENT (top → bottom in rack)
+// ============================================================
+const DEVICES = [
+    { id:'machu1',     name:'Мачу Сомон #1',           tag:'0072',          info:'DVB-T2 ресивер',           cat:'receiver',  u:1, color:0x4caf50 },
+    { id:'machu2',     name:'Мачу Сомон #2',           tag:'0030',          info:'DVB-T2 ресивер',           cat:'receiver',  u:1, color:0x4caf50 },
+    { id:'phoenix',    name:'Phoenix Gold',            tag:'0034',          info:'Ресивер',                  cat:'receiver',  u:1, color:0x4caf50 },
+    { id:'visionous',  name:'VISIONOUS',               tag:'800t',          info:'Ресивер',                  cat:'receiver',  u:1, color:0x4caf50 },
+    { id:'kino_hd',    name:'КИНО HD',                 tag:'-',             info:'HD Receiver',              cat:'receiver',  u:1, color:0x4caf50 },
+    { id:'an1_xdsr',   name:'AN1 / XDSR420HD',         tag:'243',           info:'HD Receiver',              cat:'receiver',  u:1, color:0x4caf50 },
+    { id:'xcruiser1',  name:'Xcruiser AVANT #1',       tag:'Sat-Rx',        info:'Спутниковый ресивер',      cat:'receiver',  u:1, color:0x66bb6a },
+    { id:'xcruiser2',  name:'Xcruiser AVANT #2',       tag:'Sat-Rx',        info:'Спутниковый ресивер',      cat:'receiver',  u:1, color:0x66bb6a },
+    { id:'hdmi_split', name:'HDMI Splitter 1×4',       tag:'AV',            info:'1 IN → 4 OUT',             cat:'av',        u:1, color:0x9e9e9e },
+    { id:'rmc_an1',    name:'RMC AN.1',                tag:'-',             info:'Устройство',               cat:'av',        u:1, color:0x9e9e9e },
+    { id:'encoder8ch', name:'8-in-1 HD Encoder',       tag:'2.13 / 100-067',info:'MPEG-4 AVC/H.264',         cat:'broadcast', u:1, color:0x9c27b0 },
+    { id:'mikrotik_router',name:'MikroTik Router',     tag:'2.10',          info:'192.168.10.16',            cat:'network',   u:1, color:0x4a90e2 },
+    { id:'dvb_streamer',name:'DVB-IP Streamer',        tag:'3.16',          info:'DVB → IP',                 cat:'broadcast', u:1, color:0x9c27b0 },
+    { id:'compact_headend',name:'Compact Headend',     tag:'3.15 / 100-304',info:'DVB Common Interface',     cat:'broadcast', u:1, color:0xab47bc },
+    { id:'crs326',     name:'MikroTik CRS326',         tag:'100-5xx',       info:'24G + 2×SFP+ (10G)',       cat:'network',   u:1, color:0x4a90e2 },
+    { id:'css326',     name:'MikroTik CSS326',         tag:'100-498',       info:'24G + 2×SFP+',             cat:'network',   u:1, color:0x4a90e2 },
+    { id:'gaming_pc',  name:'Gaming PC (RGB)',         tag:'F10',           info:'Desktop в стойке',         cat:'server',    u:3, color:0xff9800 },
+    { id:'dell1',      name:'Dell PowerEdge #1',       tag:'100-492',       info:'Tower Server',             cat:'server',    u:4, color:0xff9800 },
+    { id:'dell2',      name:'Dell PowerEdge #2',       tag:'100-491',       info:'Tower Server',             cat:'server',    u:4, color:0xff9800 },
+];
+
+// Demo connections (will animate even without import)
+const DEMO_CONNECTIONS = [
+    { devA:'crs326',         devB:'css326',          cable:'fiber'    },
+    { devA:'crs326',         devB:'mikrotik_router', cable:'ethernet' },
+    { devA:'crs326',         devB:'dell1',           cable:'ethernet' },
+    { devA:'crs326',         devB:'dell2',           cable:'ethernet' },
+    { devA:'crs326',         devB:'gaming_pc',       cable:'ethernet' },
+    { devA:'css326',         devB:'encoder8ch',      cable:'ethernet' },
+    { devA:'css326',         devB:'dvb_streamer',    cable:'ethernet' },
+    { devA:'css326',         devB:'compact_headend', cable:'ethernet' },
+    { devA:'encoder8ch',     devB:'hdmi_split',      cable:'hdmi'     },
+    { devA:'hdmi_split',     devB:'xcruiser1',       cable:'hdmi'     },
+    { devA:'hdmi_split',     devB:'xcruiser2',       cable:'hdmi'     },
+    { devA:'hdmi_split',     devB:'kino_hd',         cable:'hdmi'     },
+    { devA:'compact_headend',devB:'machu1',          cable:'rf'       },
+    { devA:'compact_headend',devB:'machu2',          cable:'rf'       },
+    { devA:'compact_headend',devB:'phoenix',         cable:'rf'       },
+    { devA:'compact_headend',devB:'visionous',       cable:'rf'       },
+    { devA:'dvb_streamer',   devB:'an1_xdsr',        cable:'coax'     },
+    { devA:'dell1',          devB:'dell2',           cable:'ethernet' },
+];
+
+const CABLE_COLORS = {
+    ethernet: 0x4a90e2,
+    fiber:    0xffeb3b,
+    hdmi:     0xff4081,
+    coax:     0x8d6e63,
+    rf:       0x66bb6a,
+    power:    0xf44336,
+    serial:   0x90a4ae,
+    asi:      0xba68c8,
+    other:    0x9e9e9e,
+};
+
+// ============================================================
+// SCENE
+// ============================================================
+const canvas = document.getElementById('canvas');
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x05060a);
+scene.fog = new THREE.Fog(0x05060a, 30, 100);
+
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth/window.innerHeight, 0.1, 1000);
+camera.position.set(18, 12, 22);
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, powerPreference:'high-performance' });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+
+// Post-processing
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.7, 0.4, 0.85);
+composer.addPass(bloom);
+composer.addPass(new OutputPass());
+
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.4;
+controls.minDistance = 8;
+controls.maxDistance = 50;
+
+// ============================================================
+// LIGHTING
+// ============================================================
+scene.add(new THREE.AmbientLight(0x404060, 0.5));
+
+const keyLight = new THREE.DirectionalLight(0xfff5e0, 0.8);
+keyLight.position.set(15, 20, 10);
+scene.add(keyLight);
+
+const rimLight = new THREE.DirectionalLight(0xe94560, 0.6);
+rimLight.position.set(-10, 5, -10);
+scene.add(rimLight);
+
+const fillLight = new THREE.DirectionalLight(0x4a90e2, 0.4);
+fillLight.position.set(10, -5, 5);
+scene.add(fillLight);
+
+// ============================================================
+// FLOOR (grid)
+// ============================================================
+const grid = new THREE.GridHelper(60, 60, 0x222840, 0x111520);
+grid.position.y = -0.01;
+scene.add(grid);
+
+// reflective floor
+const floorGeo = new THREE.PlaneGeometry(60, 60);
+const floorMat = new THREE.MeshStandardMaterial({
+    color: 0x0a0c14,
+    roughness: 0.3,
+    metalness: 0.7,
+    transparent: true,
+    opacity: 0.6,
+});
+const floor = new THREE.Mesh(floorGeo, floorMat);
+floor.rotation.x = -Math.PI/2;
+scene.add(floor);
+
+// ============================================================
+// RACK CABINET
+// ============================================================
+const RACK_WIDTH = 6;
+const RACK_DEPTH = 4;
+const U_HEIGHT = 0.4;
+const totalU = DEVICES.reduce((s,d) => s + d.u, 0) + 4;
+const RACK_HEIGHT = totalU * U_HEIGHT;
+
+const rackGroup = new THREE.Group();
+scene.add(rackGroup);
+
+// Rack frame (4 corner posts)
+const postGeo = new THREE.BoxGeometry(0.15, RACK_HEIGHT + 0.5, 0.15);
+const postMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, metalness: 0.8, roughness: 0.3 });
+[[1,1],[1,-1],[-1,1],[-1,-1]].forEach(([x,z]) => {
+    const post = new THREE.Mesh(postGeo, postMat);
+    post.position.set(x*RACK_WIDTH/2, RACK_HEIGHT/2, z*RACK_DEPTH/2);
+    rackGroup.add(post);
+});
+
+// Top & bottom plates
+const plateMat = new THREE.MeshStandardMaterial({ color: 0x0a0a0a, metalness: 0.6, roughness: 0.5 });
+const topPlate = new THREE.Mesh(new THREE.BoxGeometry(RACK_WIDTH+0.3, 0.1, RACK_DEPTH+0.3), plateMat);
+topPlate.position.y = RACK_HEIGHT + 0.25;
+rackGroup.add(topPlate);
+const botPlate = topPlate.clone();
+botPlate.position.y = -0.05;
+rackGroup.add(botPlate);
+
+// ============================================================
+// DEVICES (placed in rack, top to bottom)
+// ============================================================
+const deviceMeshes = {};
+const labelSprites = [];
+
+let cursorY = RACK_HEIGHT - 0.5;
+
+function makeLabel(text, sub) {
+    const cv = document.createElement('canvas');
+    cv.width = 512; cv.height = 128;
+    const ctx = cv.getContext('2d');
+    ctx.fillStyle = 'rgba(10,12,20,0.85)';
+    ctx.roundRect ? (ctx.beginPath(), ctx.roundRect(0,0,512,128,16), ctx.fill()) : ctx.fillRect(0,0,512,128);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 38px Segoe UI, sans-serif';
+    ctx.fillText(text, 20, 55);
+    ctx.fillStyle = '#e94560';
+    ctx.font = '26px Segoe UI, sans-serif';
+    ctx.fillText(sub, 20, 95);
+    const tex = new THREE.CanvasTexture(cv);
+    tex.minFilter = THREE.LinearFilter;
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent:true, depthTest:false }));
+    sprite.scale.set(3, 0.75, 1);
+    return sprite;
+}
+
+DEVICES.forEach((dev, idx) => {
+    const h = dev.u * U_HEIGHT * 0.92;
+    cursorY -= h/2;
+
+    const grp = new THREE.Group();
+    grp.position.set(0, cursorY, 0);
+    grp.userData = { device: dev, originalY: cursorY };
+
+    // chassis
+    const geo = new THREE.BoxGeometry(RACK_WIDTH - 0.6, h, RACK_DEPTH - 0.4);
+    const mat = new THREE.MeshStandardMaterial({
+        color: 0x1a1d28,
+        metalness: 0.85,
+        roughness: 0.35,
+        emissive: dev.color,
+        emissiveIntensity: 0.05,
+    });
+    const chassis = new THREE.Mesh(geo, mat);
+    grp.add(chassis);
+
+    // front face accent (LED strip)
+    const ledGeo = new THREE.BoxGeometry(RACK_WIDTH - 0.8, h * 0.08, 0.05);
+    const ledMat = new THREE.MeshBasicMaterial({ color: dev.color });
+    const led = new THREE.Mesh(ledGeo, ledMat);
+    led.position.set(0, -h*0.35, RACK_DEPTH/2 - 0.18);
+    led.userData.isLed = true;
+    led.userData.baseColor = new THREE.Color(dev.color);
+    grp.add(led);
+
+    // status dots (blinking)
+    for (let i = 0; i < 4; i++) {
+        const dot = new THREE.Mesh(
+            new THREE.SphereGeometry(0.04, 8, 8),
+            new THREE.MeshBasicMaterial({ color: i % 2 === 0 ? 0x00ff66 : 0xff4444 })
+        );
+        dot.position.set(-RACK_WIDTH/2 + 0.5 + i*0.2, h*0.3, RACK_DEPTH/2 - 0.18);
+        dot.userData.blinkSpeed = 1 + Math.random() * 3;
+        dot.userData.blinkPhase = Math.random() * Math.PI * 2;
+        dot.userData.isStatusDot = true;
+        grp.add(dot);
+    }
+
+    // label
+    const label = makeLabel(dev.name, dev.tag);
+    label.position.set(RACK_WIDTH/2 + 1.8, 0, 0);
+    grp.add(label);
+    labelSprites.push(label);
+
+    rackGroup.add(grp);
+    deviceMeshes[dev.id] = grp;
+
+    cursorY -= h/2 + 0.05;
+});
+
+// Center the rack vertically
+rackGroup.position.y = 0;
+
+// ============================================================
+// CONNECTIONS / CABLES
+// ============================================================
+let cableGroup = new THREE.Group();
+scene.add(cableGroup);
+let connections = [];
+let cableMeshes = [];
+
+function buildCables() {
+    cableGroup.clear();
+    cableMeshes = [];
+
+    connections.forEach((conn, idx) => {
+        const a = deviceMeshes[conn.devA];
+        const b = deviceMeshes[conn.devB];
+        if (!a || !b) return;
+
+        // Random offset for each cable so they don't overlap
+        const sideA = (idx % 4 < 2) ? 1 : -1;
+        const sideB = (idx % 2 === 0) ? 1 : -1;
+        const xOffA = sideA * (RACK_WIDTH/2 - 0.3 - (idx % 5) * 0.1);
+        const xOffB = sideB * (RACK_WIDTH/2 - 0.3 - (idx % 5) * 0.1);
+        const zOff = -RACK_DEPTH/2 + 0.1 + (idx % 6) * 0.08;
+
+        const start = new THREE.Vector3(xOffA, a.position.y, zOff);
+        const end   = new THREE.Vector3(xOffB, b.position.y, zOff);
+        const midDist = Math.max(0.5, Math.abs(start.y - end.y) * 0.4);
+        const ctrl1 = new THREE.Vector3(xOffA + sideA * midDist, (start.y + end.y)/2 + 0.2, zOff - 0.5);
+        const ctrl2 = new THREE.Vector3(xOffB + sideB * midDist, (start.y + end.y)/2 - 0.2, zOff - 0.5);
+
+        const curve = new THREE.CubicBezierCurve3(start, ctrl1, ctrl2, end);
+        const tubeGeo = new THREE.TubeGeometry(curve, 50, 0.025, 8, false);
+        const color = CABLE_COLORS[conn.cable] || CABLE_COLORS.other;
+        const tubeMat = new THREE.MeshStandardMaterial({
+            color: color,
+            emissive: color,
+            emissiveIntensity: 0.4,
+            roughness: 0.4,
+            metalness: 0.3,
+        });
+        const tube = new THREE.Mesh(tubeGeo, tubeMat);
+        cableGroup.add(tube);
+
+        // Animated data packet
+        const packet = new THREE.Mesh(
+            new THREE.SphereGeometry(0.07, 12, 12),
+            new THREE.MeshBasicMaterial({ color: color })
+        );
+        packet.userData = { curve, t: Math.random(), speed: 0.15 + Math.random() * 0.2 };
+        cableGroup.add(packet);
+        cableMeshes.push({ tube, packet });
+    });
+
+    document.getElementById('connCount').textContent = connections.length;
+}
+
+connections = DEMO_CONNECTIONS.slice();
+buildCables();
+document.getElementById('deviceCount').textContent = DEVICES.length;
+
+// ============================================================
+// INTERACTION
+// ============================================================
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+let hovered = null;
+
+canvas.addEventListener('mousemove', e => {
+    mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+});
+
+canvas.addEventListener('click', e => {
+    raycaster.setFromCamera(mouse, camera);
+    const hits = raycaster.intersectObjects(rackGroup.children, true);
+    for (const hit of hits) {
+        let obj = hit.object;
+        while (obj && !obj.userData?.device) obj = obj.parent;
+        if (obj?.userData?.device) {
+            showInfo(obj.userData.device);
+            // pulse animation
+            obj.userData.pulseUntil = performance.now() + 800;
+            return;
+        }
+    }
+    document.getElementById('infoPanel').classList.remove('visible');
+});
+
+function showInfo(dev) {
+    document.getElementById('infoName').textContent = dev.name;
+    document.getElementById('infoTag').textContent = dev.tag;
+    document.getElementById('infoDesc').innerHTML = `<b>Описание:</b> ${dev.info}`;
+    document.getElementById('infoDesc').nextElementSibling.innerHTML = `<b>Категория:</b> ${dev.cat}`;
+    const conns = connections.filter(c => c.devA === dev.id || c.devB === dev.id);
+    document.getElementById('infoConns').innerHTML = `<b>Подключений:</b> ${conns.length}`;
+    document.getElementById('infoPanel').classList.add('visible');
+}
+
+// ============================================================
+// CONTROLS
+// ============================================================
+window.toggleAutoRotate = () => {
+    controls.autoRotate = !controls.autoRotate;
+    document.getElementById('btnRotate').classList.toggle('active', controls.autoRotate);
+};
+
+window.resetCamera = () => {
+    camera.position.set(18, 12, 22);
+    controls.target.set(0, RACK_HEIGHT/2, 0);
+};
+controls.target.set(0, RACK_HEIGHT/2, 0);
+
+let cablesVisible = true;
+window.toggleCables = () => {
+    cablesVisible = !cablesVisible;
+    cableGroup.visible = cablesVisible;
+    document.getElementById('btnCables').classList.toggle('active', cablesVisible);
+};
+
+let labelsVisible = true;
+window.toggleLabels = () => {
+    labelsVisible = !labelsVisible;
+    labelSprites.forEach(s => s.visible = labelsVisible);
+    document.getElementById('btnLabels').classList.toggle('active', labelsVisible);
+};
+
+let exploded = false;
+window.toggleExplode = () => {
+    exploded = !exploded;
+    document.getElementById('btnExplode').classList.toggle('active', exploded);
+};
+
+window.loadConnections = () => {
+    const inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = '.json';
+    inp.onchange = e => {
+        const fr = new FileReader();
+        fr.onload = ev => {
+            try {
+                const d = JSON.parse(ev.target.result);
+                if (Array.isArray(d.connections)) {
+                    connections = d.connections.map(c => ({
+                        devA: c.idA || c.devA,
+                        devB: c.idB || c.devB,
+                        cable: (c.cable || c.cableType || 'ethernet').toLowerCase().replace(/[^a-z]/g,'').includes('опт') ? 'fiber'
+                             : (c.cable || c.cableType || 'ethernet').toLowerCase()
+                    }));
+                    buildCables();
+                }
+            } catch(err) { alert('Ошибка: ' + err.message); }
+        };
+        fr.readAsText(e.target.files[0]);
+    };
+    inp.click();
+};
+
+// ============================================================
+// ANIMATION LOOP
+// ============================================================
+let lastTime = performance.now();
+let frames = 0, fpsTimer = 0;
+
+function animate() {
+    requestAnimationFrame(animate);
+    const now = performance.now();
+    const dt = (now - lastTime) / 1000;
+    lastTime = now;
+
+    controls.update();
+
+    // Hover effect
+    raycaster.setFromCamera(mouse, camera);
+    const hits = raycaster.intersectObjects(rackGroup.children, true);
+    let newHover = null;
+    for (const h of hits) {
+        let o = h.object;
+        while (o && !o.userData?.device) o = o.parent;
+        if (o?.userData?.device) { newHover = o; break; }
+    }
+    if (newHover !== hovered) {
+        if (hovered) hovered.children[0].material.emissiveIntensity = 0.05;
+        if (newHover) {
+            newHover.children[0].material.emissiveIntensity = 0.4;
+            canvas.style.cursor = 'pointer';
+        } else {
+            canvas.style.cursor = 'grab';
+        }
+        hovered = newHover;
+    }
+
+    // Animate device pulses & status dots
+    rackGroup.traverse(obj => {
+        if (obj.userData?.isStatusDot) {
+            const intensity = 0.5 + 0.5 * Math.sin(now * 0.002 * obj.userData.blinkSpeed + obj.userData.blinkPhase);
+            obj.material.opacity = intensity;
+            obj.material.transparent = true;
+        }
+        if (obj.userData?.isLed) {
+            const pulse = 0.5 + 0.5 * Math.sin(now * 0.003);
+            obj.material.color.copy(obj.userData.baseColor).multiplyScalar(0.5 + pulse * 0.5);
+        }
+    });
+
+    // Device pulse animation on click
+    Object.values(deviceMeshes).forEach(grp => {
+        if (grp.userData.pulseUntil && now < grp.userData.pulseUntil) {
+            const t = (grp.userData.pulseUntil - now) / 800;
+            const s = 1 + Math.sin(t * Math.PI) * 0.08;
+            grp.scale.set(s, s, s);
+        } else {
+            grp.scale.set(1, 1, 1);
+        }
+    });
+
+    // Explode/assemble
+    Object.values(deviceMeshes).forEach((grp, i) => {
+        const target = exploded ? grp.userData.originalY + (i - DEVICES.length/2) * 0.4 : grp.userData.originalY;
+        grp.position.y += (target - grp.position.y) * 0.08;
+        const targetX = exploded ? Math.sin(i * 0.7) * 1.5 : 0;
+        grp.position.x += (targetX - grp.position.x) * 0.08;
+    });
+
+    // Animate data packets along cables
+    cableMeshes.forEach(({ packet }) => {
+        packet.userData.t += dt * packet.userData.speed;
+        if (packet.userData.t > 1) packet.userData.t = 0;
+        const pos = packet.userData.curve.getPoint(packet.userData.t);
+        packet.position.copy(pos);
+        const scale = 1 + 0.4 * Math.sin(now * 0.01);
+        packet.scale.setScalar(scale);
+    });
+
+    composer.render();
+
+    frames++;
+    fpsTimer += dt;
+    if (fpsTimer >= 0.5) {
+        document.getElementById('fps').textContent = Math.round(frames / fpsTimer);
+        frames = 0; fpsTimer = 0;
+    }
+}
+
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    composer.setSize(window.innerWidth, window.innerHeight);
+});
+
+animate();
+
+// hide loader
+setTimeout(() => {
+    document.getElementById('loadingScreen').style.opacity = '0';
+    setTimeout(() => document.getElementById('loadingScreen').style.display = 'none', 600);
+}, 800);
+</script>
+</body>
+</html>
