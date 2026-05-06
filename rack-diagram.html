@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Схема подключений стойки</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #12131a; color: #e0e0e0; }
+
+        header {
+            background: #1c1e2b;
+            padding: 12px 20px;
+            border-bottom: 2px solid #e94560;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        header h1 { font-size: 1.1em; color: #e94560; }
+        header span { font-size: 0.8em; color: #888; }
+
+        .layout { display: flex; height: calc(100vh - 52px); }
+
+        /* ===== LEFT PANEL ===== */
+        .devices-panel {
+            width: 310px;
+            background: #1c1e2b;
+            overflow-y: auto;
+            border-right: 2px solid #252840;
+            flex-shrink: 0;
+        }
+        .panel-search {
+            padding: 8px;
+            position: sticky;
+            top: 0;
+            background: #1c1e2b;
+            z-index: 10;
+            border-bottom: 1px solid #252840;
+        }
+        .panel-search input {
+            width: 100%;
+            background: #12131a;
+            color: #eee;
+            border: 1px solid #333;
+            padding: 5px 8px;
+            border-radius: 4px;
+            font-size: 0.82em;
+        }
+        .device-card { border-bottom: 1px solid #252840; }
+        .device-header {
+            background: #1c1e2b;
+            padding: 8px 12px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            user-select: none;
+        }
+        .device-header:hover { background: #252840; }
+        .device-name { font-size: 0.84em; font-weight: 600; color: #cde; }
+        .device-info { font-size: 0.72em; color: #778; margin-top: 2px; }
+        .device-tag {
+            font-size: 0.68em;
+            background: #2a3a5a;
+            color: #7ab;
+            padding: 2px 6px;
+            border-radius: 3px;
+            white-space: nowrap;
+            margin-left: 6px;
+            flex-shrink: 0;
+        }
+        .device-tag.rack { background: #3a2a1a; color: #ca9; }
+        .ports-list { display: none; background: #161825; padding: 4px 6px; }
+        .ports-list.open { display: block; }
+        .port-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            width: 100%;
+            text-align: left;
+            padding: 5px 8px;
+            margin: 2px 0;
+            background: transparent;
+            border: 1px solid #252840;
+            color: #aaa;
+            font-size: 0.78em;
+            cursor: pointer;
+            border-radius: 3px;
+            transition: all 0.15s;
+        }
+        .port-btn:hover { background: #252840; color: #fff; border-color: #4a6fa5; }
+        .port-btn.selected { background: #e94560 !important; color: #fff !important; border-color: #e94560 !important; }
+        .port-btn.connected { border-color: #2e7d32; color: #66bb6a; }
+        .port-btn.connected::before { content: '●'; color: #4CAF50; font-size: 0.7em; }
+        .port-btn:not(.connected)::before { content: '○'; color: #555; font-size: 0.7em; }
+
+        /* ===== RIGHT PANEL ===== */
+        .main-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+        .status-bar {
+            background: #1c1e2b;
+            padding: 7px 15px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            border-bottom: 1px solid #252840;
+            flex-shrink: 0;
+        }
+        .status-pill {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.82em;
+            flex: 1;
+        }
+        .status-pill.waiting { background: #1a2030; border: 1px solid #ffc107; color: #ffc107; }
+        .status-pill.port1 { background: #1a2030; border: 1px solid #e94560; color: #e94560; }
+
+        .toolbar {
+            padding: 8px 12px;
+            background: #161825;
+            border-bottom: 1px solid #252840;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .toolbar label { font-size: 0.78em; color: #888; }
+        select.styled, input.styled {
+            background: #12131a;
+            color: #eee;
+            border: 1px solid #333;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+        }
+        input.note-field { width: 200px; }
+        input.search-field { width: 140px; }
+
+        .btn {
+            padding: 4px 11px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.78em;
+            font-weight: 600;
+        }
+        .btn-red { background: #c0392b; color: #fff; }
+        .btn-blue { background: #1a3a6a; color: #7ab; border: 1px solid #2a5a9a; }
+        .btn-green { background: #1a3a2a; color: #6ab; border: 1px solid #2a6a4a; }
+        .btn-cancel { background: #2a2a3a; color: #aaa; border: 1px solid #444; }
+
+        /* ===== TABLE ===== */
+        .conn-wrap { flex: 1; overflow-y: auto; padding: 12px; }
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid #252840;
+        }
+        .section-header span { font-size: 0.9em; color: #e94560; }
+
+        table { width: 100%; border-collapse: collapse; font-size: 0.8em; }
+        th {
+            background: #1c1e2b;
+            padding: 7px 10px;
+            text-align: left;
+            color: #7ab;
+            position: sticky;
+            top: 0;
+            z-index: 5;
+            font-size: 0.85em;
+        }
+        td { padding: 6px 10px; border-bottom: 1px solid #1c1e2b; vertical-align: middle; }
+        tr:hover td { background: #1c1e2b; }
+        .dev-name { font-weight: 600; color: #cde; }
+        .dev-tag-cell { color: #778; font-size: 0.85em; }
+        .port-name { color: #a0c4ff; }
+        .note-cell { color: #888; font-size: 0.9em; }
+        .cable-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 2px 7px;
+            border-radius: 3px;
+            font-size: 0.85em;
+            background: #1a1a2e;
+            border: 1px solid #333;
+        }
+        .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+        .conn-num { color: #555; font-size: 0.85em; }
+        .empty-row td { text-align: center; color: #555; padding: 40px; font-size: 0.9em; }
+
+        /* scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #12131a; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+
+        .expand-arrow { font-size: 0.75em; color: #555; transition: transform 0.2s; }
+        .expand-arrow.open { transform: rotate(90deg); }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>⬡ Схема подключений серверной стойки</h1>
+    <span>Кликните порт на устройстве → выберите второй порт для создания связи</span>
+</header>
+
+<div class="layout">
+
+    <!-- LEFT: devices -->
+    <div class="devices-panel">
+        <div class="panel-search">
+            <input type="text" id="deviceSearch" placeholder="🔍 Поиск устройства..." oninput="filterDevices()">
+        </div>
+        <div id="devicesContainer"></div>
+    </div>
+
+    <!-- RIGHT: connections -->
+    <div class="main-panel">
+        <div class="status-bar">
+            <div class="status-pill waiting" id="statusPill">Выберите порт источника (шаг 1/2)</div>
+            <button class="btn btn-cancel" onclick="cancelSelection()">Отмена</button>
+        </div>
+        <div class="toolbar">
+            <label>Кабель:</label>
+            <select class="styled" id="cableType">
+                <option value="ethernet">Ethernet</option>
+                <option value="hdmi">HDMI</option>
+                <option value="coax">Коаксиал</option>
+                <option value="fiber">Оптика</option>
+                <option value="power">Питание</option>
+                <option value="serial">RS-232 / Serial</option>
+                <option value="asi">ASI</option>
+                <option value="rf">RF / Антенный</option>
+                <option value="other">Другой</option>
+            </select>
+            <label>Примечание:</label>
+            <input class="styled note-field" id="connNote" type="text" placeholder="IP, VLAN, описание...">
+            <label>Поиск:</label>
+            <input class="styled search-field" id="connSearch" type="text" placeholder="Фильтр таблицы..." oninput="renderTable()">
+            <div style="margin-left:auto; display:flex; gap:6px;">
+                <button class="btn btn-green" onclick="exportCSV()">📥 CSV</button>
+                <button class="btn btn-blue" onclick="exportJSON()">💾 JSON</button>
+                <button class="btn btn-blue" onclick="importJSON()">📤 Импорт</button>
+                <button class="btn btn-red" onclick="clearAll()">🗑 Очистить</button>
+            </div>
+        </div>
+        <div class="conn-wrap">
+            <div class="section-header">
+                <span>Подключения: <strong id="connCount">0</strong></span>
+                <span style="font-size:0.75em; color:#556">Данные сохраняются автоматически в браузере</span>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Устройство A</th>
+                        <th>Порт A</th>
+                        <th>Кабель</th>
+                        <th>Устройство B</th>
+                        <th>Порт B</th>
+                        <th>Примечание</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="connTable"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+// ============================================================
+// EQUIPMENT DATA — based on photos
+// ============================================================
+const DEVICES = [
+    {
+        id: 'crs326',
+        name: 'MikroTik CRS326-24G-2S+RM',
+        tag: '100-5xx',
+        info: 'Cloud Router Switch | rack 1U',
+        category: 'network',
+        ports: [
+            ...Array.from({length:24}, (_,i) => `ETH${i+1} (1G)`),
+            'SFP+ 1 (10G)', 'SFP+ 2 (10G)',
+            'Console (RJ45)', 'Power'
+        ]
+    },
+    {
+        id: 'css326',
+        name: 'MikroTik CSS326-24G',
+        tag: '100-498',
+        info: 'Cloud Smart Switch | rack 1U',
+        category: 'network',
+        ports: [
+            ...Array.from({length:24}, (_,i) => `ETH${i+1} (1G)`),
+            'SFP+ 1 (10G)', 'SFP+ 2 (10G)', 'Power'
+        ]
+    },
+    {
+        id: 'mikrotik_router',
+        name: 'MikroTik Router (малый)',
+        tag: '2.10',
+        info: 'IP: 192.168.10.16 | Login: admin | Pass: admin',
+        category: 'network',
+        ports: ['ETH1 (WAN)', 'ETH2', 'ETH3', 'ETH4', 'ETH5', 'SFP1', 'USB', 'Power']
+    },
+    {
+        id: 'encoder8ch',
+        name: '8-in-1 MPEG-4 AVC/H.264 HD Encoder',
+        tag: '2.13 | 100-067',
+        info: 'HD видео энкодер',
+        category: 'broadcast',
+        ports: [
+            'HDMI IN 1', 'HDMI IN 2', 'HDMI IN 3', 'HDMI IN 4',
+            'HDMI IN 5', 'HDMI IN 6', 'HDMI IN 7', 'HDMI IN 8',
+            'ASI OUT 1', 'ASI OUT 2',
+            'IP/LAN (стриминг)', 'LAN (управление)', 'Power'
+        ]
+    },
+    {
+        id: 'dvb_streamer',
+        name: 'DVB-IP Streamer',
+        tag: '3.16',
+        info: 'DVB → IP стример',
+        category: 'broadcast',
+        ports: [
+            'RF IN 1', 'RF IN 2', 'RF IN 3', 'RF IN 4',
+            'ASI IN', 'ASI OUT',
+            'IP/LAN (поток)', 'LAN (управление)', 'Power'
+        ]
+    },
+    {
+        id: 'compact_headend',
+        name: 'Compact Headend DVB',
+        tag: '3.15 | 100-304',
+        info: 'DVB Compact Headend | Common Interface',
+        category: 'broadcast',
+        ports: [
+            'RF IN 1', 'RF IN 2', 'RF IN 3', 'RF IN 4',
+            'RF OUT', 'RF TEST',
+            'CI Slot 1', 'CI Slot 2',
+            'ASI IN', 'ASI OUT 1', 'ASI OUT 2',
+            'LAN', 'USB', 'Power'
+        ]
+    },
+    {
+        id: 'xcruiser1',
+        name: 'Xcruiser XDSR420HD AVANT #1',
+        tag: 'Спутниковый ресивер',
+        info: 'Digital Satellite Receiver',
+        category: 'receiver',
+        ports: ['LNB IN', 'LNB OUT', 'HDMI OUT', 'SCART', 'RS-232C', 'USB', 'LAN', 'SPDIF', 'Power']
+    },
+    {
+        id: 'xcruiser2',
+        name: 'Xcruiser XDSR420HD AVANT #2',
+        tag: 'Спутниковый ресивер',
+        info: 'Digital Satellite Receiver',
+        category: 'receiver',
+        ports: ['LNB IN', 'LNB OUT', 'HDMI OUT', 'SCART', 'RS-232C', 'USB', 'LAN', 'SPDIF', 'Power']
+    },
+    {
+        id: 'kino_hd',
+        name: 'КИНО HD',
+        tag: 'Ресивер',
+        info: 'HD Satellite/Cable Receiver',
+        category: 'receiver',
+        ports: ['LNB IN', 'HDMI OUT', 'USB', 'LAN', 'Power']
+    },
+    {
+        id: 'an1_xdsr',
+        name: 'AN1 / XDSR420HD',
+        tag: 'Ресивер | 243',
+        info: 'HD Receiver (Xcruiser)',
+        category: 'receiver',
+        ports: ['LNB IN', 'HDMI OUT', 'USB', 'LAN', 'RS-232C', 'Power']
+    },
+    {
+        id: 'hdmi_split',
+        name: 'HDMI Splitter 1x4',
+        tag: 'Сплиттер',
+        info: '1 вход → 4 выхода',
+        category: 'av',
+        ports: ['HDMI IN', 'HDMI OUT 1', 'HDMI OUT 2', 'HDMI OUT 3', 'HDMI OUT 4', 'Power (DC)']
+    },
+    {
+        id: 'gaming_pc',
+        name: 'Gaming PC (RGB корпус)',
+        tag: 'F10 | ПК-сервер',
+        info: 'Desktop PC в стойке (открытый корпус)',
+        category: 'server',
+        ports: [
+            'LAN 1 (GbE)', 'LAN 2 (GbE)',
+            'HDMI 1', 'HDMI 2', 'HDMI 3', 'HDMI 4',
+            'DVI', 'DisplayPort',
+            'USB 3.0 × 4', 'USB 2.0 × 2',
+            'Audio OUT', 'Audio IN',
+            'PCIe Slot 1', 'PCIe Slot 2',
+            'Power'
+        ]
+    },
+    {
+        id: 'dell1',
+        name: 'Dell PowerEdge #1',
+        tag: '100-492',
+        info: 'Tower Server (2x CPU)',
+        category: 'server',
+        ports: [
+            'LAN 1 (GbE)', 'LAN 2 (GbE)', 'LAN 3 (GbE)', 'LAN 4 (GbE)',
+            'iDRAC (LAN)',
+            'VGA', 'USB (Front ×2)', 'USB (Back ×4)',
+            'PCIe 1', 'PCIe 2', 'PCIe 3',
+            'PSU 1', 'PSU 2'
+        ]
+    },
+    {
+        id: 'dell2',
+        name: 'Dell PowerEdge #2',
+        tag: '100-491',
+        info: 'Tower Server (2x CPU)',
+        category: 'server',
+        ports: [
+            'LAN 1 (GbE)', 'LAN 2 (GbE)', 'LAN 3 (GbE)', 'LAN 4 (GbE)',
+            'iDRAC (LAN)',
+            'VGA', 'USB (Front ×2)', 'USB (Back ×4)',
+            'PCIe 1', 'PCIe 2', 'PCIe 3',
+            'PSU 1', 'PSU 2'
+        ]
+    },
+    {
+        id: 'machu1',
+        name: 'Мачу Сомон MB-205T2 #1',
+        tag: '0072',
+        info: 'DVB-T2 ресивер',
+        category: 'receiver',
+        ports: ['RF IN (Антенна)', 'HDMI OUT', 'SCART', 'USB', 'Power']
+    },
+    {
+        id: 'machu2',
+        name: 'Мачу Сомон MB-205T2 #2',
+        tag: '0030',
+        info: 'DVB-T2 ресивер',
+        category: 'receiver',
+        ports: ['RF IN (Антенна)', 'HDMI OUT', 'SCART', 'USB', 'Power']
+    },
+    {
+        id: 'phoenix',
+        name: 'Phoenix Gold',
+        tag: '0034',
+        info: 'Ресивер',
+        category: 'receiver',
+        ports: ['RF IN', 'HDMI OUT', 'USB', 'LAN', 'Power']
+    },
+    {
+        id: 'visionous',
+        name: 'VISIONOUS',
+        tag: '800t',
+        info: 'Ресивер',
+        category: 'receiver',
+        ports: ['RF IN', 'HDMI OUT', 'USB', 'LAN', 'Power']
+    },
+    {
+        id: 'rmc_an1',
+        name: 'RMC AN.1',
+        tag: 'Устройство',
+        info: '',
+        category: 'other',
+        ports: ['IN 1', 'IN 2', 'OUT 1', 'OUT 2', 'LAN', 'Power']
+    },
+];
+
+// ============================================================
+const CABLE = {
+    ethernet: { label: 'Ethernet',    color: '#4a90e2' },
+    hdmi:     { label: 'HDMI',        color: '#607d8b' },
+    coax:     { label: 'Коаксиал',    color: '#5d4037' },
+    fiber:    { label: 'Оптика',      color: '#f9a825' },
+    power:    { label: 'Питание',     color: '#c62828' },
+    serial:   { label: 'RS-232',      color: '#78909c' },
+    asi:      { label: 'ASI',         color: '#6a1b9a' },
+    rf:       { label: 'RF/Антенна',  color: '#2e7d32' },
+    other:    { label: 'Другой',      color: '#757575' },
+};
+
+const CAT_COLOR = {
+    network:  '#1a3a5a',
+    broadcast:'#2a1a4a',
+    receiver: '#1a3a2a',
+    server:   '#3a2a1a',
+    av:       '#2a2a3a',
+    other:    '#2a2a2a',
+};
+
+// ============================================================
+// STATE
+// ============================================================
+let connections = [];
+let nextId = 1;
+let sel = null; // {deviceId, portName, el}
+
+// ============================================================
+// RENDER DEVICES
+// ============================================================
+function renderDevices(filter = '') {
+    const f = filter.toLowerCase();
+    const c = document.getElementById('devicesContainer');
+    c.innerHTML = '';
+    DEVICES.forEach(dev => {
+        if (f && !dev.name.toLowerCase().includes(f) && !dev.tag.toLowerCase().includes(f)) return;
+        const card = document.createElement('div');
+        card.className = 'device-card';
+        card.id = 'card_' + dev.id;
+
+        const hdr = document.createElement('div');
+        hdr.className = 'device-header';
+        hdr.style.borderLeft = `3px solid ${CAT_COLOR[dev.category] || '#333'}`;
+        hdr.innerHTML = `
+            <div>
+                <div class="device-name">${dev.name}</div>
+                ${dev.info ? `<div class="device-info">${dev.info}</div>` : ''}
+            </div>
+            <div style="display:flex;align-items:center;gap:5px">
+                <span class="device-tag">${dev.tag}</span>
+                <span class="expand-arrow" id="arrow_${dev.id}">▶</span>
+            </div>`;
+        hdr.onclick = () => togglePorts(dev.id);
+        card.appendChild(hdr);
+
+        const list = document.createElement('div');
+        list.className = 'ports-list';
+        list.id = 'ports_' + dev.id;
+        dev.ports.forEach(port => {
+            const btn = document.createElement('button');
+            btn.className = 'port-btn';
+            btn.id = portElId(dev.id, port);
+            btn.textContent = port;
+            btn.onclick = () => onPortClick(dev.id, port, btn);
+            list.appendChild(btn);
+        });
+        card.appendChild(list);
+        c.appendChild(card);
+    });
+    refreshPortStates();
+}
+
+function togglePorts(devId) {
+    const el = document.getElementById('ports_' + devId);
+    const arrow = document.getElementById('arrow_' + devId);
+    if (!el) return;
+    el.classList.toggle('open');
+    if (arrow) arrow.classList.toggle('open');
+}
+
+function filterDevices() {
+    renderDevices(document.getElementById('deviceSearch').value);
+}
+
+function portElId(devId, port) {
+    return 'p_' + devId + '_' + port.replace(/[^a-zA-Z0-9]/g, '_');
+}
+
+// ============================================================
+// PORT SELECTION LOGIC
+// ============================================================
+function onPortClick(devId, port, el) {
+    if (!sel) {
+        sel = { devId, port, el };
+        el.classList.add('selected');
+        setStatus(`Шаг 2/2 — выбран: [${devName(devId)}] ${port}. Теперь кликните второй порт.`, 'port1');
+    } else if (sel.devId === devId && sel.port === port) {
+        cancelSelection();
+    } else {
+        createConnection(sel.devId, sel.port, devId, port);
+        cancelSelection();
+    }
+}
+
+function cancelSelection() {
+    if (sel) { sel.el.classList.remove('selected'); sel = null; }
+    setStatus('Выберите порт источника (шаг 1/2)', 'waiting');
+}
+
+function setStatus(txt, cls) {
+    const el = document.getElementById('statusPill');
+    el.textContent = txt;
+    el.className = 'status-pill ' + cls;
+}
+
+// ============================================================
+// CONNECTION CRUD
+// ============================================================
+function createConnection(devA, portA, devB, portB) {
+    const cableType = document.getElementById('cableType').value;
+    const note = document.getElementById('connNote').value.trim();
+    connections.push({ id: nextId++, devA, portA, devB, portB, cableType, note });
+    document.getElementById('connNote').value = '';
+    save();
+    renderTable();
+    refreshPortStates();
+}
+
+function deleteConnection(id) {
+    connections = connections.filter(c => c.id !== id);
+    save();
+    renderTable();
+    refreshPortStates();
+}
+
+function clearAll() {
+    if (!confirm('Удалить все подключения?')) return;
+    connections = [];
+    save();
+    renderTable();
+    refreshPortStates();
+}
+
+// ============================================================
+// RENDER TABLE
+// ============================================================
+function renderTable() {
+    const q = (document.getElementById('connSearch').value || '').toLowerCase();
+    const tbody = document.getElementById('connTable');
+    document.getElementById('connCount').textContent = connections.length;
+
+    const filtered = q
+        ? connections.filter(c => [devName(c.devA), c.portA, devName(c.devB), c.portB, c.note, CABLE[c.cableType]?.label].some(s => (s||'').toLowerCase().includes(q)))
+        : connections;
+
+    if (!filtered.length) {
+        tbody.innerHTML = `<tr class="empty-row"><td colspan="8">${connections.length ? 'Ничего не найдено' : 'Нет подключений. Кликните порт на устройстве слева, затем второй порт.'}</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = filtered.map(c => {
+        const cab = CABLE[c.cableType] || CABLE.other;
+        return `<tr>
+            <td class="conn-num">${c.id}</td>
+            <td><div class="dev-name">${devName(c.devA)}</div><div class="dev-tag-cell">${devTag(c.devA)}</div></td>
+            <td class="port-name">${c.portA}</td>
+            <td><span class="cable-badge"><span class="dot" style="background:${cab.color}"></span>${cab.label}</span></td>
+            <td><div class="dev-name">${devName(c.devB)}</div><div class="dev-tag-cell">${devTag(c.devB)}</div></td>
+            <td class="port-name">${c.portB}</td>
+            <td class="note-cell">${c.note}</td>
+            <td><button class="btn btn-red" onclick="deleteConnection(${c.id})">✕</button></td>
+        </tr>`;
+    }).join('');
+}
+
+function refreshPortStates() {
+    document.querySelectorAll('.port-btn').forEach(el => el.classList.remove('connected'));
+    connections.forEach(c => {
+        const eA = document.getElementById(portElId(c.devA, c.portA));
+        const eB = document.getElementById(portElId(c.devB, c.portB));
+        if (eA) eA.classList.add('connected');
+        if (eB) eB.classList.add('connected');
+    });
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+function devName(id) { return DEVICES.find(d => d.id === id)?.name || id; }
+function devTag(id)  { return DEVICES.find(d => d.id === id)?.tag  || ''; }
+
+// ============================================================
+// STORAGE
+// ============================================================
+function save() {
+    localStorage.setItem('rack_v1', JSON.stringify({ connections, nextId }));
+}
+function load() {
+    try {
+        const d = JSON.parse(localStorage.getItem('rack_v1'));
+        if (d) { connections = d.connections || []; nextId = d.nextId || 1; }
+    } catch(e) {}
+}
+
+// ============================================================
+// EXPORT / IMPORT
+// ============================================================
+function exportCSV() {
+    const rows = [['#','Устройство A','Тег A','Порт A','Кабель','Устройство B','Тег B','Порт B','Примечание']];
+    connections.forEach(c => rows.push([
+        c.id, devName(c.devA), devTag(c.devA), c.portA,
+        CABLE[c.cableType]?.label || c.cableType,
+        devName(c.devB), devTag(c.devB), c.portB, c.note
+    ]));
+    const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+    dl('rack_connections.csv', csv, 'text/csv;charset=utf-8');
+}
+
+function exportJSON() {
+    const data = {
+        exported: new Date().toISOString(),
+        connections: connections.map(c => ({
+            id: c.id,
+            deviceA: devName(c.devA), idA: c.devA, tagA: devTag(c.devA), portA: c.portA,
+            cable: CABLE[c.cableType]?.label || c.cableType,
+            deviceB: devName(c.devB), idB: c.devB, tagB: devTag(c.devB), portB: c.portB,
+            note: c.note
+        }))
+    };
+    dl('rack_connections.json', JSON.stringify(data, null, 2), 'application/json');
+}
+
+function importJSON() {
+    const inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = '.json';
+    inp.onchange = e => {
+        const fr = new FileReader();
+        fr.onload = ev => {
+            try {
+                const d = JSON.parse(ev.target.result);
+                // Accept both raw save format and exported format
+                if (Array.isArray(d.connections) && d.connections[0]?.idA) {
+                    connections = d.connections.map(c => ({
+                        id: c.id, devA: c.idA, portA: c.portA,
+                        devB: c.idB, portB: c.portB,
+                        cableType: Object.entries(CABLE).find(([k,v])=>v.label===c.cable)?.[0] || 'other',
+                        note: c.note
+                    }));
+                } else if (Array.isArray(d.connections)) {
+                    connections = d.connections;
+                }
+                nextId = Math.max(0, ...connections.map(c=>c.id)) + 1;
+                save(); renderTable(); refreshPortStates();
+            } catch(err) { alert('Ошибка импорта: ' + err.message); }
+        };
+        fr.readAsText(e.target.files[0]);
+    };
+    inp.click();
+}
+
+function dl(filename, content, type) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob(['﻿'+content], {type}));
+    a.download = filename;
+    a.click();
+}
+
+// ============================================================
+// INIT
+// ============================================================
+load();
+renderDevices();
+renderTable();
+</script>
+</body>
+</html>
