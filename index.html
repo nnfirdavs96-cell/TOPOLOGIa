@@ -494,8 +494,12 @@ function buildRackFrame(rackData) {
 
   // Bottom + top panels
   const panelGeo = new THREE.BoxGeometry(RW,0.025,RD);
-  g.add(Object.assign(new THREE.Mesh(panelGeo,M.rackBody),{position:new THREE.Vector3(0,0.012,0)}));
-  g.add(Object.assign(new THREE.Mesh(panelGeo,M.rackBody),{position:new THREE.Vector3(0,RH+0.012,0)}));
+  const botPanel = new THREE.Mesh(panelGeo,M.rackBody);
+  botPanel.position.set(0,0.012,0);
+  g.add(botPanel);
+  const topPanel = new THREE.Mesh(panelGeo,M.rackBody);
+  topPanel.position.set(0,RH+0.012,0);
+  g.add(topPanel);
 
   // Perforated back panel (visual)
   const backPanelMat = new THREE.MeshStandardMaterial({color:0x080a0e,roughness:0.7,metalness:0.5});
@@ -1091,14 +1095,20 @@ const ldInterval=setInterval(()=>{
 
 setTimeout(()=>{
   clearInterval(ldInterval);
-  buildScene();
-  startClock();
-  ldBar.style.width='100%';
-  setTimeout(()=>{
-    document.getElementById('loading').classList.add('done');
-    setTimeout(()=>document.getElementById('loading')?.remove(),900);
-  },300);
-  requestAnimationFrame(animate);
+  try {
+    buildScene();
+    startClock();
+    ldBar.style.width='100%';
+    setTimeout(()=>{
+      document.getElementById('loading').classList.add('done');
+      setTimeout(()=>document.getElementById('loading')?.remove(),900);
+    },300);
+    requestAnimationFrame(animate);
+  } catch(err) {
+    console.error('Scene build failed:', err);
+    ldStatus.style.color='#ff3355';
+    ldStatus.textContent='Ошибка: '+(err&&err.message?err.message:err);
+  }
 },1400);
 </script>
 </body>
