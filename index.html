@@ -28,6 +28,18 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;}
 .ld-bar{height:100%;background:linear-gradient(90deg,#00d4ff,#00ff88);width:0%;transition:width .4s ease;box-shadow:0 0 12px rgba(0,212,255,.6);}
 .ld-status{font-family:'Share Tech Mono',monospace;font-size:10px;color:#2a4060;letter-spacing:2px;margin-top:12px;}
 
+/* ── CINEMATIC OVERLAYS ──────────────────────────────── */
+#vignette{
+  position:fixed;inset:0;pointer-events:none;z-index:6;
+  background:radial-gradient(ellipse at center,
+    transparent 38%, rgba(0,0,0,.28) 72%, rgba(0,0,0,.6) 100%);
+  mix-blend-mode:multiply;
+}
+#grain{
+  position:fixed;inset:0;pointer-events:none;z-index:7;opacity:.05;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
 /* ── UI OVERLAY ──────────────────────────────────────── */
 #ui{position:fixed;inset:0;pointer-events:none;z-index:10;font-family:'Share Tech Mono',monospace;}
 
@@ -171,6 +183,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;}
 </div>
 
 <canvas id="c"></canvas>
+<div id="vignette"></div>
+<div id="grain"></div>
 
 <div id="ui">
   <div id="hdr">
@@ -248,6 +262,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { Reflector } from 'three/addons/objects/Reflector.js';
 
 // ═══════════════════════════════════════════════════════
 //  DATA — Real equipment from Doc2.docx photos
@@ -408,14 +423,33 @@ function buildRoom() {
   const g = new THREE.Group();
   const W=13, D=9, H=3.4;
 
-  // Floor
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(W,D,1,1), M.floor);
-  floor.rotation.x = -Math.PI/2; floor.receiveShadow = true;
-  g.add(floor);
+  // Mirror floor — true reflections (the "premium" look)
+  const mirror = new Reflector(new THREE.PlaneGeometry(W,D), {
+    clipBias: 0.003,
+    textureWidth: window.innerWidth * Math.min(window.devicePixelRatio,2),
+    textureHeight: window.innerHeight * Math.min(window.devicePixelRatio,2),
+    color: 0x4a5260,
+  });
+  mirror.rotation.x = -Math.PI/2;
+  mirror.position.y = 0;
+  g.add(mirror);
 
-  // Floor grid
-  const grid = new THREE.GridHelper(W, 26, 0x0a1828, 0x060e18);
-  grid.position.y = 0.001;
+  // Tinted glass overlay on top of mirror so it's not a perfect mirror
+  const floorGlass = new THREE.Mesh(new THREE.PlaneGeometry(W,D),
+    new THREE.MeshPhysicalMaterial({
+      color:0x10131a, roughness:0.34, metalness:0.0,
+      transparent:true, opacity:0.74, transmission:0.0,
+    }));
+  floorGlass.rotation.x = -Math.PI/2;
+  floorGlass.position.y = 0.002;
+  floorGlass.receiveShadow = true;
+  g.add(floorGlass);
+
+  // Subtle floor grid
+  const grid = new THREE.GridHelper(W, 26, 0x1a2838, 0x0e1620);
+  grid.position.y = 0.004;
+  grid.material.transparent = true;
+  grid.material.opacity = 0.35;
   g.add(grid);
 
   // Walls
@@ -1141,6 +1175,22 @@ setTimeout(()=>{
       setTimeout(()=>document.getElementById('loading')?.remove(),900);
     },300);
     requestAnimationFrame(animate);
+
+    // Cinematic intro fly-in (Lusion-style reveal)
+    const iso = MODES.iso;
+    camera.position.set(0, 0.9, 11);
+    controls.target.set(0, 0.8, 0);
+    controls.enabled = false;
+    if (window.gsap) {
+      gsap.timeline({ onComplete:()=>{ controls.enabled = true; } })
+        .to(camera.position, { x:iso.pos[0], y:iso.pos[1], z:iso.pos[2], duration:3.2, ease:'power3.inOut' }, 0)
+        .to(controls.target, { x:iso.tgt[0], y:iso.tgt[1], z:iso.tgt[2], duration:3.2, ease:'power3.inOut', onUpdate:()=>controls.update() }, 0)
+        .fromTo(bloom, { strength:0.9 }, { strength:iso.bloomStr, duration:3.2, ease:'power2.out' }, 0);
+    } else {
+      camera.position.set(...iso.pos);
+      controls.target.set(...iso.tgt);
+      controls.enabled = true;
+    }
   } catch(err) {
     console.error('Scene build failed:', err);
     ldStatus.style.color='#ff3355';
