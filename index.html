@@ -3,2025 +3,1103 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TOPOLOGY — Digital Twin Server Room</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<title>TOPOLOGY — Virtual Server Room</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <style>
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-:root {
-  --cyan: #00d4ff;
-  --green: #00ff88;
-  --red: #ff3355;
-  --orange: #ff8c00;
-  --bg: #05060a;
-  --bg2: #080c14;
-  --bg3: #0d1220;
-  --border: #1a2540;
-  --text: #c0d4f0;
-  --text-dim: #4a6080;
-}
-
-html, body {
-  width: 100%; height: 100%;
-  overflow: hidden;
-  background: var(--bg);
-  color: var(--text);
-  font-family: 'Share Tech Mono', monospace;
-}
-
-/* ─── CANVAS BG ─── */
-#canvas-bg {
-  position: fixed; top: 0; left: 0;
-  width: 100%; height: 100%;
-  z-index: 0; pointer-events: none;
-}
-
-/* ─── SCANLINES ─── */
-#scanlines {
-  position: fixed; top: 0; left: 0;
-  width: 100%; height: 100%;
-  z-index: 1; pointer-events: none;
-  background: repeating-linear-gradient(
-    0deg,
-    transparent,
-    transparent 2px,
-    rgba(0,0,0,0.08) 2px,
-    rgba(0,0,0,0.08) 4px
-  );
-}
-
-/* ─── VIGNETTE ─── */
-#vignette {
-  position: fixed; top: 0; left: 0;
-  width: 100%; height: 100%;
-  z-index: 2; pointer-events: none;
-  background: radial-gradient(ellipse at center,
-    transparent 40%,
-    rgba(0,0,0,0.4) 70%,
-    rgba(0,0,0,0.75) 100%
-  );
-}
-
-/* ─── FLASH ─── */
-#flash {
-  position: fixed; top: 0; left: 0;
-  width: 100%; height: 100%;
-  z-index: 9999; pointer-events: none;
-  background: radial-gradient(ellipse at center,
-    rgba(0,212,255,0.6) 0%,
-    rgba(0,212,255,0.2) 50%,
-    transparent 80%
-  );
-  opacity: 0;
-  transition: opacity 0.05s ease;
-}
-
-/* ─── APP WRAPPER ─── */
-#app {
-  position: fixed; top: 0; left: 0;
-  width: 100%; height: 100%;
-  z-index: 10;
-  display: flex; flex-direction: column;
-}
-
-/* ─── HEADER ─── */
-#header {
-  height: 56px; flex-shrink: 0;
-  background: linear-gradient(90deg, rgba(5,6,10,0.95) 0%, rgba(10,16,30,0.95) 50%, rgba(5,6,10,0.95) 100%);
-  border-bottom: 1px solid var(--cyan);
-  display: flex; align-items: center;
-  padding: 0 20px;
-  gap: 24px;
-  box-shadow: 0 0 30px rgba(0,212,255,0.15), 0 2px 0 rgba(0,212,255,0.08);
-  position: relative;
-  z-index: 100;
-}
-
-#header::after {
-  content: '';
-  position: absolute; bottom: -1px; left: 0; right: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--cyan), transparent);
-}
-
-.hdr-title {
-  font-family: 'Orbitron', sans-serif;
-  font-size: 18px; font-weight: 900;
-  color: var(--cyan);
-  text-shadow: 0 0 20px rgba(0,212,255,0.8), 0 0 40px rgba(0,212,255,0.4);
-  letter-spacing: 4px;
-  flex-shrink: 0;
-}
-
-.hdr-subtitle {
-  font-size: 10px;
-  color: var(--text-dim);
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  flex-shrink: 0;
-}
-
-.hdr-sep {
-  width: 1px; height: 30px;
-  background: linear-gradient(to bottom, transparent, var(--border), transparent);
-  flex-shrink: 0;
-}
-
-.hdr-stat {
-  display: flex; flex-direction: column;
-  gap: 2px; flex-shrink: 0;
-}
-.hdr-stat-label {
-  font-size: 9px; color: var(--text-dim);
-  letter-spacing: 1px; text-transform: uppercase;
-}
-.hdr-stat-value {
-  font-size: 13px; color: var(--cyan);
-  text-shadow: 0 0 10px rgba(0,212,255,0.5);
-}
-.hdr-stat-value.green { color: var(--green); text-shadow: 0 0 10px rgba(0,255,136,0.5); }
-.hdr-stat-value.red { color: var(--red); text-shadow: 0 0 10px rgba(255,51,85,0.5); }
-.hdr-stat-value.orange { color: var(--orange); text-shadow: 0 0 10px rgba(255,140,0,0.5); }
-
-.hdr-spacer { flex: 1; }
-
-#clock {
-  font-family: 'Orbitron', sans-serif;
-  font-size: 14px; font-weight: 600;
-  color: var(--cyan);
-  text-shadow: 0 0 15px rgba(0,212,255,0.6);
-  letter-spacing: 2px;
-  flex-shrink: 0;
-}
-
-/* ─── MAIN ─── */
-#main {
-  flex: 1; overflow: hidden;
-  position: relative;
-}
-
-/* ─── VIEW OVERVIEW ─── */
-#view-overview {
-  position: absolute; inset: 0;
-  overflow-y: auto;
-  padding: 30px;
-  transition: opacity 0.3s ease, transform 0.3s ease;
-}
-#view-overview::-webkit-scrollbar { width: 6px; }
-#view-overview::-webkit-scrollbar-track { background: var(--bg); }
-#view-overview::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-
-.overview-header {
-  margin-bottom: 24px;
-  display: flex; align-items: baseline; gap: 16px;
-}
-.overview-title {
-  font-family: 'Orbitron', sans-serif;
-  font-size: 22px; font-weight: 700;
-  color: var(--text);
-  letter-spacing: 3px;
-}
-.overview-sub {
-  font-size: 11px; color: var(--text-dim);
-  letter-spacing: 2px;
-}
-
-.racks-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
-}
-
-.rack-card {
-  background: linear-gradient(135deg, rgba(13,18,32,0.9) 0%, rgba(8,12,20,0.95) 100%);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 0;
-  cursor: pointer;
-  transition: all 0.25s ease;
-  position: relative;
-  overflow: hidden;
-}
-
-.rack-card::before {
-  content: '';
-  position: absolute; top: 0; left: 0; right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, var(--cyan), transparent);
-  opacity: 0;
-  transition: opacity 0.25s ease;
-}
-
-.rack-card:hover {
-  border-color: var(--cyan);
-  transform: translateY(-3px);
-  box-shadow:
-    0 0 20px rgba(0,212,255,0.2),
-    0 0 40px rgba(0,212,255,0.08),
-    0 8px 25px rgba(0,0,0,0.5);
-}
-
-.rack-card:hover::before { opacity: 1; }
-
-.rack-card-header {
-  padding: 16px 18px 10px;
-  border-bottom: 1px solid rgba(26,37,64,0.5);
-  display: flex; align-items: flex-start; justify-content: space-between;
-}
-
-.rack-card-name {
-  font-family: 'Orbitron', sans-serif;
-  font-size: 15px; font-weight: 700;
-  color: var(--cyan);
-  text-shadow: 0 0 15px rgba(0,212,255,0.4);
-  letter-spacing: 2px;
-  display: block;
-}
-
-.rack-card-label {
-  font-size: 10px; color: var(--text-dim);
-  letter-spacing: 1px; margin-top: 3px;
-}
-
-.status-badge {
-  font-family: 'Orbitron', sans-serif;
-  font-size: 9px; font-weight: 700;
-  letter-spacing: 2px;
-  padding: 3px 8px;
-  border-radius: 2px;
-  flex-shrink: 0;
-}
-.status-badge.ok {
-  background: rgba(0,255,136,0.1);
-  border: 1px solid rgba(0,255,136,0.4);
-  color: var(--green);
-  text-shadow: 0 0 8px rgba(0,255,136,0.6);
-}
-.status-badge.warn {
-  background: rgba(255,140,0,0.1);
-  border: 1px solid rgba(255,140,0,0.4);
-  color: var(--orange);
-  text-shadow: 0 0 8px rgba(255,140,0,0.6);
-}
-.status-badge.down {
-  background: rgba(255,51,85,0.1);
-  border: 1px solid rgba(255,51,85,0.4);
-  color: var(--red);
-  text-shadow: 0 0 8px rgba(255,51,85,0.6);
-}
-
-.rack-mini-vis {
-  padding: 10px 18px;
-  display: flex; flex-direction: column; gap: 2px;
-  min-height: 80px;
-}
-
-.rack-mini-device {
-  height: 8px;
-  border-radius: 1px;
-  position: relative;
-  overflow: hidden;
-  opacity: 0.85;
-}
-.rack-mini-device::after {
-  content: '';
-  position: absolute; inset: 0;
-  background: linear-gradient(90deg, rgba(255,255,255,0.15) 0%, transparent 60%);
-}
-
-.rack-card-footer {
-  padding: 10px 18px;
-  border-top: 1px solid rgba(26,37,64,0.5);
-  display: flex; gap: 16px;
-}
-.rack-footer-stat {
-  font-size: 10px; color: var(--text-dim);
-}
-.rack-footer-stat span {
-  color: var(--text);
-}
-
-/* ─── VIEW RACK ─── */
-#view-rack {
-  position: absolute; inset: 0;
-  display: flex;
-  opacity: 0; pointer-events: none;
-  transition: opacity 0.3s ease;
-}
-#view-rack.active {
-  opacity: 1; pointer-events: all;
-}
-
-/* ─── SIDEBAR ─── */
-#sidebar {
-  width: 260px; flex-shrink: 0;
-  background: linear-gradient(180deg, rgba(8,12,20,0.97) 0%, rgba(5,8,14,0.97) 100%);
-  border-right: 1px solid var(--border);
-  display: flex; flex-direction: column;
-  overflow: hidden;
-  position: relative;
-  z-index: 20;
-}
-
-#sidebar::after {
-  content: '';
-  position: absolute; top: 0; right: 0; bottom: 0;
-  width: 1px;
-  background: linear-gradient(to bottom, transparent, rgba(0,212,255,0.2), transparent);
-}
-
-.sidebar-back {
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--border);
-  display: flex; align-items: center; gap: 8px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 11px; letter-spacing: 2px;
-  color: var(--text-dim);
-}
-.sidebar-back:hover {
-  color: var(--cyan);
-  background: rgba(0,212,255,0.05);
-  text-shadow: 0 0 10px rgba(0,212,255,0.4);
-}
-
-.sidebar-rack-info {
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--border);
-}
-.sidebar-rack-name {
-  font-family: 'Orbitron', sans-serif;
-  font-size: 14px; font-weight: 700;
-  color: var(--cyan);
-  text-shadow: 0 0 12px rgba(0,212,255,0.5);
-  letter-spacing: 2px;
-}
-.sidebar-rack-label {
-  font-size: 10px; color: var(--text-dim);
-  letter-spacing: 1px; margin-top: 3px;
-}
-
-#sidebar-panel {
-  flex: 1; overflow-y: auto;
-  padding: 0;
-}
-#sidebar-panel::-webkit-scrollbar { width: 4px; }
-#sidebar-panel::-webkit-scrollbar-track { background: transparent; }
-#sidebar-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-
-.sidebar-section {
-  padding: 10px 16px;
-  border-bottom: 1px solid rgba(26,37,64,0.4);
-}
-.sidebar-section-title {
-  font-family: 'Orbitron', sans-serif;
-  font-size: 9px; font-weight: 700;
-  color: var(--text-dim);
-  letter-spacing: 3px;
-  text-transform: uppercase;
-  margin-bottom: 8px;
-}
-
-/* Selected device/port info */
-.info-row {
-  display: flex; align-items: baseline;
-  gap: 6px; margin-bottom: 4px;
-}
-.info-label {
-  font-size: 9px; color: var(--text-dim);
-  letter-spacing: 1px; width: 55px; flex-shrink: 0;
-}
-.info-value {
-  font-size: 11px; color: var(--text);
-  word-break: break-all;
-}
-
-/* Cable list */
-.cable-item {
-  display: flex; align-items: center; gap: 8px;
-  padding: 5px 0;
-  border-bottom: 1px solid rgba(26,37,64,0.3);
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-.cable-item:hover { background: rgba(0,212,255,0.04); }
-.cable-item.selected { background: rgba(0,212,255,0.08); }
-
-.cable-dot {
-  width: 8px; height: 8px; border-radius: 50%;
-  flex-shrink: 0;
-  box-shadow: 0 0 6px currentColor;
-}
-
-.cable-info {
-  flex: 1; min-width: 0;
-  font-size: 9px; color: var(--text-dim);
-  line-height: 1.4;
-  overflow: hidden;
-}
-.cable-label {
-  font-size: 10px; color: var(--text);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-
-.cable-del {
-  width: 18px; height: 18px;
-  background: rgba(255,51,85,0.1);
-  border: 1px solid rgba(255,51,85,0.3);
-  border-radius: 2px;
-  color: var(--red);
-  font-size: 11px;
-  cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-  transition: all 0.15s ease;
-}
-.cable-del:hover {
-  background: rgba(255,51,85,0.25);
-  box-shadow: 0 0 8px rgba(255,51,85,0.4);
-}
-
-/* ─── RACK MAIN AREA ─── */
-#rack-main {
-  flex: 1; overflow: auto;
-  padding: 20px;
-  display: flex; justify-content: center;
-}
-#rack-main::-webkit-scrollbar { width: 6px; height: 6px; }
-#rack-main::-webkit-scrollbar-track { background: var(--bg); }
-#rack-main::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-
-.rack-frame {
-  width: 560px;
-  flex-shrink: 0;
-  background: linear-gradient(180deg, #080c14 0%, #05080f 100%);
-  border: 2px solid #1e2a44;
-  border-radius: 6px;
-  position: relative;
-  box-shadow:
-    0 0 0 1px #0d1220,
-    0 0 40px rgba(0,212,255,0.05),
-    inset 0 0 40px rgba(0,0,0,0.5);
-  overflow: visible;
-}
-
-.rack-frame::before {
-  content: '';
-  position: absolute; top: -1px; left: 20px; right: 20px;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, rgba(0,212,255,0.4), transparent);
-}
-
-.rack-top-bar {
-  height: 36px;
-  background: linear-gradient(180deg, #0d1422 0%, #080c14 100%);
-  border-bottom: 1px solid #1e2a44;
-  display: flex; align-items: center;
-  padding: 0 12px; gap: 8px;
-  border-radius: 4px 4px 0 0;
-}
-.rack-top-dot {
-  width: 8px; height: 8px; border-radius: 50%;
-}
-.rack-top-title {
-  font-family: 'Orbitron', sans-serif;
-  font-size: 10px; font-weight: 700;
-  color: var(--text-dim);
-  letter-spacing: 3px;
-  margin-left: 4px;
-}
-
-.rack-body {
-  display: flex;
-  padding: 4px 8px;
-}
-
-/* U numbers */
-.rack-u-numbers {
-  width: 28px; flex-shrink: 0;
-  display: flex; flex-direction: column;
-}
-
-.rack-u-num {
-  display: flex; align-items: center; justify-content: flex-end;
-  padding-right: 6px;
-  font-size: 8px; color: #2a3a55;
-  font-family: 'Share Tech Mono', monospace;
-  user-select: none;
-  border-right: 1px solid #111827;
-}
-
-/* Devices area */
-.rack-devices-area {
-  flex: 1;
-  position: relative;
-  border-left: 1px solid #1e2a44;
-  border-right: 1px solid #1e2a44;
-}
-
-/* SVG cable overlay */
-.cable-svg {
-  position: absolute;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  pointer-events: none;
-  z-index: 50;
-  overflow: visible;
-}
-.cable-svg.drawing-mode {
-  pointer-events: all;
-  cursor: crosshair;
-}
-
-/* Device row */
-.device-row {
-  position: absolute;
-  left: 0; right: 0;
-  display: flex;
-  align-items: stretch;
-  border-bottom: 1px solid rgba(14,20,36,0.6);
-  transition: all 0.15s ease;
-}
-
-.device-accent {
-  width: 4px; flex-shrink: 0;
-  align-self: stretch;
-  border-radius: 1px 0 0 1px;
-}
-
-.device-led {
-  width: 16px; flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
-}
-.device-led-dot {
-  width: 5px; height: 5px;
-  border-radius: 50%;
-}
-.device-led-dot.up {
-  background: var(--green);
-  box-shadow: 0 0 6px var(--green);
-  animation: ledPulse 2s ease-in-out infinite;
-}
-.device-led-dot.down {
-  background: var(--red);
-  box-shadow: 0 0 6px var(--red);
-}
-.device-led-dot.warn {
-  background: var(--orange);
-  box-shadow: 0 0 6px var(--orange);
-  animation: ledPulse 1s ease-in-out infinite;
-}
-
-@keyframes ledPulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
-}
-
-.device-info {
-  flex: 1; min-width: 0;
-  display: flex; flex-direction: column;
-  justify-content: center;
-  padding: 2px 6px;
-}
-.device-name {
-  font-family: 'Orbitron', sans-serif;
-  font-size: 9px; font-weight: 700;
-  color: var(--text);
-  letter-spacing: 1px;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.device-model {
-  font-size: 8px; color: var(--text-dim);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-
-.device-ports {
-  display: flex; flex-wrap: wrap;
-  gap: 2px; padding: 3px 6px 3px 2px;
-  align-items: center;
-  max-width: 220px;
-}
-
-.port-dot {
-  width: 9px; height: 9px;
-  border-radius: 1px;
-  cursor: pointer;
-  position: relative;
-  transition: all 0.15s ease;
-  flex-shrink: 0;
-}
-
-.port-dot:hover {
-  transform: scale(1.4);
-  z-index: 200;
-}
-
-.port-dot.connected {
-  border: 1px solid rgba(255,255,255,0.3);
-}
-
-.port-dot.selected-port {
-  animation: portPulse 0.7s ease-in-out infinite;
-  z-index: 200;
-}
-
-@keyframes portPulse {
-  0%, 100% {
-    transform: scale(1);
-    box-shadow: 0 0 4px currentColor, 0 0 8px currentColor;
-  }
-  50% {
-    transform: scale(1.5);
-    box-shadow: 0 0 8px currentColor, 0 0 16px currentColor, 0 0 24px currentColor;
-  }
-}
-
-.port-dot.down-port {
-  opacity: 0.3;
-}
-
-/* Empty U slots */
-.empty-u {
-  position: absolute;
-  left: 0; right: 0;
-  background: repeating-linear-gradient(
-    90deg,
-    rgba(10,15,25,0.4) 0px,
-    rgba(10,15,25,0.4) 3px,
-    rgba(6,9,16,0.6) 3px,
-    rgba(6,9,16,0.6) 6px
-  );
-  border-bottom: 1px solid rgba(14,20,36,0.3);
-}
-
-/* ─── TOOLTIP ─── */
-#tooltip {
-  position: fixed;
-  background: rgba(5,8,14,0.96);
-  border: 1px solid var(--cyan);
-  border-radius: 3px;
-  padding: 8px 10px;
-  font-size: 10px;
-  pointer-events: none;
-  z-index: 9000;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-  box-shadow: 0 0 20px rgba(0,212,255,0.2);
-  max-width: 180px;
-}
-#tooltip.visible { opacity: 1; }
-.tt-name {
-  font-family: 'Orbitron', sans-serif;
-  font-size: 10px; font-weight: 700;
-  color: var(--cyan);
-  letter-spacing: 1px;
-}
-.tt-row { margin-top: 3px; }
-.tt-label { color: var(--text-dim); }
-.tt-val { color: var(--text); }
-
-/* ─── CABLE MODE INDICATOR ─── */
-#cable-mode-bar {
-  position: fixed;
-  bottom: 0; left: 0; right: 0;
-  height: 36px;
-  background: linear-gradient(90deg,
-    rgba(0,0,0,0.9),
-    rgba(0,212,255,0.12) 50%,
-    rgba(0,0,0,0.9)
-  );
-  border-top: 1px solid var(--cyan);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 12px; color: var(--cyan);
-  letter-spacing: 2px;
-  z-index: 8000;
-  opacity: 0; pointer-events: none;
-  transition: opacity 0.2s ease;
-  text-shadow: 0 0 10px rgba(0,212,255,0.6);
-  box-shadow: 0 -4px 20px rgba(0,212,255,0.15);
-}
-#cable-mode-bar.active {
-  opacity: 1;
-}
-
-/* ─── GLITCH ─── */
-@keyframes glitch {
-  0% { clip-path: inset(0 0 95% 0); transform: translate(-3px, 0); filter: hue-rotate(-30deg); }
-  20% { clip-path: inset(30% 0 50% 0); transform: translate(3px, 0); filter: hue-rotate(30deg); }
-  40% { clip-path: inset(60% 0 20% 0); transform: translate(-2px, 0); filter: hue-rotate(-20deg); }
-  60% { clip-path: inset(80% 0 5% 0); transform: translate(2px, 0); filter: hue-rotate(20deg); }
-  80% { clip-path: inset(10% 0 75% 0); transform: translate(-1px, 0); }
-  100% { clip-path: inset(0 0 0 0); transform: translate(0, 0); filter: hue-rotate(0deg); }
-}
-
-.glitch-overlay {
-  position: fixed; inset: 0;
-  z-index: 9990; pointer-events: none;
-  background: var(--bg);
-  opacity: 0;
-}
-
-/* ─── RACK bottom bar ─── */
-.rack-bottom-bar {
-  height: 24px;
-  background: linear-gradient(180deg, #080c14 0%, #0d1422 100%);
-  border-top: 1px solid #1e2a44;
-  display: flex; align-items: center;
-  padding: 0 12px;
-  border-radius: 0 0 4px 4px;
-}
-.rack-bottom-text {
-  font-size: 8px; color: #1e2a44;
-  letter-spacing: 3px;
-  text-transform: uppercase;
-}
-
-/* ─── CABLE DELETE BUTTON ─── */
-.cable-del-btn {
-  position: absolute;
-  width: 16px; height: 16px;
-  background: rgba(255,51,85,0.15);
-  border: 1px solid rgba(255,51,85,0.5);
-  border-radius: 50%;
-  color: var(--red);
-  font-size: 10px;
-  cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  z-index: 60;
-  pointer-events: all;
-  transition: all 0.15s ease;
-  transform: translate(-50%, -50%);
-}
-.cable-del-btn:hover {
-  background: rgba(255,51,85,0.4);
-  box-shadow: 0 0 10px rgba(255,51,85,0.5);
-}
-
-/* ─── Device hover state ─── */
-.device-row:hover .device-name {
-  color: var(--cyan);
-  text-shadow: 0 0 8px rgba(0,212,255,0.4);
-}
-
-/* ─── SCROLLBAR ─── */
-* { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
-
-/* ─── No cables notice ─── */
-.no-cables {
-  font-size: 10px; color: var(--text-dim);
-  padding: 8px 0;
-  font-style: italic;
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{width:100%;height:100%;overflow:hidden;background:#000;}
+#c{display:block;width:100%;height:100%;}
+
+/* ── LOADING ─────────────────────────────────────────── */
+#loading{
+  position:fixed;inset:0;background:#05060a;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  z-index:1000;transition:opacity .8s ease;
+}
+#loading.done{opacity:0;pointer-events:none;}
+.ld-logo{
+  font-family:'Orbitron',sans-serif;font-size:36px;font-weight:900;
+  color:#00d4ff;letter-spacing:8px;
+  text-shadow:0 0 40px rgba(0,212,255,.9),0 0 80px rgba(0,212,255,.4);
+  margin-bottom:6px;
+}
+.ld-sub{font-family:'Share Tech Mono',monospace;font-size:11px;color:#2a4060;letter-spacing:3px;margin-bottom:32px;}
+.ld-bar-wrap{width:220px;height:1px;background:rgba(0,212,255,.12);border-radius:1px;overflow:hidden;}
+.ld-bar{height:100%;background:linear-gradient(90deg,#00d4ff,#00ff88);width:0%;transition:width .4s ease;box-shadow:0 0 12px rgba(0,212,255,.6);}
+.ld-status{font-family:'Share Tech Mono',monospace;font-size:10px;color:#2a4060;letter-spacing:2px;margin-top:12px;}
+
+/* ── UI OVERLAY ──────────────────────────────────────── */
+#ui{position:fixed;inset:0;pointer-events:none;z-index:10;font-family:'Share Tech Mono',monospace;}
+
+/* Header */
+#hdr{
+  position:absolute;top:0;left:0;right:0;height:54px;
+  background:linear-gradient(90deg,rgba(0,0,0,.92),rgba(0,5,18,.88),rgba(0,0,0,.92));
+  border-bottom:1px solid rgba(0,212,255,.2);
+  display:flex;align-items:center;padding:0 22px;gap:18px;
+  pointer-events:all;
+  box-shadow:0 0 30px rgba(0,212,255,.06);
+}
+.hdr-logo{
+  font-family:'Orbitron',sans-serif;font-size:18px;font-weight:900;
+  color:#00d4ff;letter-spacing:5px;flex-shrink:0;
+  text-shadow:0 0 20px rgba(0,212,255,.7);
+}
+.hdr-sub{font-size:9px;color:#2a4060;letter-spacing:2px;text-transform:uppercase;flex-shrink:0;}
+.hdr-sep{width:1px;height:26px;background:rgba(26,37,64,.6);flex-shrink:0;}
+.hdr-stat{display:flex;flex-direction:column;gap:1px;flex-shrink:0;}
+.hdr-stat-l{font-size:8px;color:#2a4060;letter-spacing:1px;text-transform:uppercase;}
+.hdr-stat-v{font-size:13px;color:#00d4ff;}
+.hdr-stat-v.g{color:#00ff88;}
+.hdr-stat-v.r{color:#ff3355;}
+.hdr-stat-v.o{color:#ff8c00;}
+.hdr-flex{flex:1;}
+#clock{font-family:'Orbitron',sans-serif;font-size:13px;color:#00d4ff;text-shadow:0 0 10px rgba(0,212,255,.4);letter-spacing:2px;}
+
+/* Mode switcher */
+#modes{
+  position:absolute;bottom:28px;left:50%;transform:translateX(-50%);
+  display:flex;gap:6px;pointer-events:all;
+}
+.mode-btn{
+  background:rgba(3,5,12,.88);backdrop-filter:blur(14px);
+  border:1px solid rgba(0,212,255,.15);color:#4a6080;
+  padding:9px 18px;font-family:'Orbitron',sans-serif;
+  font-size:10px;letter-spacing:2px;cursor:pointer;border-radius:2px;
+  transition:all .25s;
+}
+.mode-btn:hover{border-color:rgba(0,212,255,.5);color:#00d4ff;background:rgba(0,212,255,.06);}
+.mode-btn.active{
+  border-color:#00d4ff;color:#00d4ff;background:rgba(0,212,255,.1);
+  text-shadow:0 0 10px rgba(0,212,255,.5);
+  box-shadow:0 0 18px rgba(0,212,255,.08),inset 0 0 8px rgba(0,212,255,.04);
+}
+
+/* Info panel */
+#info-panel{
+  position:absolute;top:64px;right:18px;width:255px;
+  background:rgba(3,5,12,.92);backdrop-filter:blur(18px);
+  border:1px solid rgba(0,212,255,.18);border-radius:3px;
+  padding:14px 16px;pointer-events:all;display:none;
+}
+#info-panel.visible{display:block;animation:fadeIn .2s ease;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-8px);}to{opacity:1;transform:translateY(0);}}
+.ip-title{
+  font-family:'Orbitron',sans-serif;font-size:12px;font-weight:700;
+  color:#00d4ff;letter-spacing:1.5px;margin-bottom:10px;
+  text-shadow:0 0 10px rgba(0,212,255,.4);
+}
+.ip-close{
+  float:right;cursor:pointer;color:#4a6080;font-size:14px;line-height:1;
+  transition:color .2s;margin-left:8px;pointer-events:all;
+}
+.ip-close:hover{color:#ff3355;}
+.ip-row{display:flex;justify-content:space-between;font-size:10px;margin:3px 0;color:#4a6080;}
+.ip-row span:last-child{color:#a0b8d0;}
+.ip-ok{color:#00ff88!important;}.ip-warn{color:#ff8c00!important;}.ip-down{color:#ff3355!important;}
+.ip-divider{height:1px;background:rgba(26,37,64,.5);margin:8px 0;}
+.ip-section-title{font-size:8px;color:#2a4060;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:5px;}
+.ip-port-grid{display:flex;flex-wrap:wrap;gap:2px;}
+.ip-port{width:11px;height:11px;border-radius:1px;cursor:pointer;transition:transform .15s;}
+.ip-port:hover{transform:scale(1.4);}
+
+/* Rack selector panel */
+#rack-panel{
+  position:absolute;top:64px;left:18px;width:180px;
+  background:rgba(3,5,12,.92);backdrop-filter:blur(18px);
+  border:1px solid rgba(0,212,255,.15);border-radius:3px;
+  overflow:hidden;pointer-events:all;
+}
+.rp-title{padding:10px 12px 8px;font-size:8px;color:#2a4060;letter-spacing:2px;text-transform:uppercase;border-bottom:1px solid rgba(26,37,64,.5);}
+.rp-item{
+  padding:8px 12px;cursor:pointer;
+  display:flex;align-items:center;gap:8px;
+  border-bottom:1px solid rgba(26,37,64,.3);
+  transition:background .2s;
+}
+.rp-item:hover{background:rgba(0,212,255,.05);}
+.rp-item.active{background:rgba(0,212,255,.08);}
+.rp-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.rp-name{font-family:'Orbitron',sans-serif;font-size:9px;color:#8090a0;letter-spacing:1px;}
+.rp-label{font-size:8px;color:#2a4060;margin-top:1px;}
+
+/* Controls hint */
+#hint{
+  position:absolute;bottom:68px;right:18px;
+  font-size:9px;color:#2a4060;line-height:1.9;text-align:right;
+  pointer-events:none;
+}
+
+/* Crosshair */
+#crosshair{
+  position:absolute;top:50%;left:50%;
+  transform:translate(-50%,-50%);
+  width:16px;height:16px;pointer-events:none;display:none;
+}
+#crosshair::before,#crosshair::after{content:'';position:absolute;background:rgba(0,212,255,.5);}
+#crosshair::before{top:50%;left:0;right:0;height:1px;transform:translateY(-50%);}
+#crosshair::after{left:50%;top:0;bottom:0;width:1px;transform:translateX(-50%);}
+
+/* Rack label (3D CSS) */
+.rack-label{
+  position:absolute;pointer-events:none;
+  font-family:'Orbitron',sans-serif;font-size:10px;font-weight:700;
+  color:#00d4ff;letter-spacing:2px;
+  text-shadow:0 0 10px rgba(0,212,255,.6);
+  white-space:nowrap;
+  transform:translateX(-50%);
 }
 </style>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
 </head>
 <body>
 
-<canvas id="canvas-bg"></canvas>
-<div id="scanlines"></div>
-<div id="vignette"></div>
-<div id="flash"></div>
+<div id="loading">
+  <div class="ld-logo">TOPOLOGY</div>
+  <div class="ld-sub">Virtual Server Room · Digital Twin</div>
+  <div class="ld-bar-wrap"><div class="ld-bar" id="ld-bar"></div></div>
+  <div class="ld-status" id="ld-status">Initializing scene...</div>
+</div>
 
-<div id="app">
-  <header id="header">
-    <div class="hdr-title">TOPOLOGY</div>
-    <div class="hdr-subtitle">Digital Twin</div>
+<canvas id="c"></canvas>
+
+<div id="ui">
+  <div id="hdr">
+    <div class="hdr-logo">TOPOLOGY</div>
+    <div class="hdr-sub">Digital Twin</div>
     <div class="hdr-sep"></div>
     <div class="hdr-stat">
-      <div class="hdr-stat-label">Стойки</div>
-      <div class="hdr-stat-value" id="stat-racks">6</div>
+      <div class="hdr-stat-l">Стойки</div>
+      <div class="hdr-stat-v" id="s-racks">3</div>
     </div>
     <div class="hdr-sep"></div>
     <div class="hdr-stat">
-      <div class="hdr-stat-label">Устройства</div>
-      <div class="hdr-stat-value green" id="stat-devices">0</div>
+      <div class="hdr-stat-l">Устройства</div>
+      <div class="hdr-stat-v g" id="s-devs">—</div>
     </div>
     <div class="hdr-sep"></div>
     <div class="hdr-stat">
-      <div class="hdr-stat-label">Тревога</div>
-      <div class="hdr-stat-value red" id="stat-down">0</div>
+      <div class="hdr-stat-l">Порты UP</div>
+      <div class="hdr-stat-v g" id="s-ports">—</div>
     </div>
     <div class="hdr-sep"></div>
     <div class="hdr-stat">
-      <div class="hdr-stat-label">Кабели</div>
-      <div class="hdr-stat-value" id="stat-cables">0</div>
+      <div class="hdr-stat-l">Тревога</div>
+      <div class="hdr-stat-v r" id="s-warn">—</div>
     </div>
     <div class="hdr-sep"></div>
     <div class="hdr-stat">
-      <div class="hdr-stat-label">Порты UP</div>
-      <div class="hdr-stat-value green" id="stat-ports">0</div>
+      <div class="hdr-stat-l">Кабели</div>
+      <div class="hdr-stat-v o" id="s-cables">—</div>
     </div>
-    <div class="hdr-spacer"></div>
+    <div class="hdr-flex"></div>
     <div id="clock">--:--:--</div>
-  </header>
-
-  <div id="main">
-    <!-- OVERVIEW -->
-    <div id="view-overview">
-      <div class="overview-header">
-        <div class="overview-title">СЕРВЕРНЫЙ ЗАЛ</div>
-        <div class="overview-sub">6 стоек / Broadcast Facility</div>
-      </div>
-      <div class="racks-grid" id="racks-grid"></div>
-    </div>
-
-    <!-- RACK DETAIL -->
-    <div id="view-rack">
-      <div id="sidebar">
-        <div class="sidebar-back" id="sidebar-back">← НАЗАД</div>
-        <div class="sidebar-rack-info">
-          <div class="sidebar-rack-name" id="sb-rack-name">—</div>
-          <div class="sidebar-rack-label" id="sb-rack-label">—</div>
-        </div>
-        <div id="sidebar-panel">
-          <!-- selected info + cable list injected here -->
-        </div>
-      </div>
-
-      <div id="rack-main">
-        <div class="rack-frame" id="rack-frame">
-          <div class="rack-top-bar">
-            <div class="rack-top-dot" style="background:#ff3355;box-shadow:0 0 6px #ff3355"></div>
-            <div class="rack-top-dot" style="background:#ff8c00;box-shadow:0 0 6px #ff8c00"></div>
-            <div class="rack-top-dot" style="background:#00ff88;box-shadow:0 0 6px #00ff88"></div>
-            <div class="rack-top-title" id="rack-frame-title">RACK</div>
-          </div>
-          <div class="rack-body">
-            <div class="rack-u-numbers" id="rack-u-numbers"></div>
-            <div class="rack-devices-area" id="rack-devices-area">
-              <!-- devices + cable SVG injected here -->
-            </div>
-          </div>
-          <div class="rack-bottom-bar">
-            <div class="rack-bottom-text">42U STANDARD RACK ENCLOSURE</div>
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
+
+  <div id="rack-panel">
+    <div class="rp-title">Стойки</div>
+    <div id="rp-list"></div>
+  </div>
+
+  <div id="info-panel">
+    <div class="ip-title">
+      <span class="ip-close" onclick="closeInfo()">✕</span>
+      <span id="ip-name">—</span>
+    </div>
+    <div class="ip-row"><span>Бренд</span><span id="ip-brand">—</span></div>
+    <div class="ip-row"><span>Модель</span><span id="ip-model">—</span></div>
+    <div class="ip-row"><span>Тип</span><span id="ip-type">—</span></div>
+    <div class="ip-row"><span>Статус</span><span id="ip-status">—</span></div>
+    <div class="ip-divider"></div>
+    <div class="ip-section-title">Порты</div>
+    <div class="ip-port-grid" id="ip-ports"></div>
+  </div>
+
+  <div id="modes">
+    <button class="mode-btn active" id="m-iso" onclick="setMode('iso')">⊞ СТОЙКИ</button>
+    <button class="mode-btn" id="m-fly" onclick="setMode('fly')">◈ ОБЗОР</button>
+    <button class="mode-btn" id="m-walk" onclick="setMode('walk')">⊙ ПРОГУЛКА</button>
+  </div>
+
+  <div id="hint">
+    ЛКМ — выбрать устройство<br>
+    Колесо — масштаб<br>
+    Drag — вращение
+  </div>
+
+  <div id="crosshair"></div>
 </div>
 
-<div id="tooltip">
-  <div class="tt-name" id="tt-name"></div>
-  <div class="tt-row"><span class="tt-label">Тип: </span><span class="tt-val" id="tt-type"></span></div>
-  <div class="tt-row"><span class="tt-label">Статус: </span><span class="tt-val" id="tt-status"></span></div>
-  <div class="tt-row" id="tt-speed-row"><span class="tt-label">Скорость: </span><span class="tt-val" id="tt-speed"></span></div>
-</div>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 
-<div id="cable-mode-bar">
-  ◈ РЕЖИМ КАБЕЛЯ — выберите целевой порт | ESC отмена
-</div>
-
-<script>
 // ═══════════════════════════════════════════════════════
-//  DATA
+//  DATA — Real equipment from Doc2.docx photos
 // ═══════════════════════════════════════════════════════
-const U_H = 36;
-
 const RACKS = [
   {
-    id:"R-A", name:"RACK-A", label:"Ядро сети", u:42, status:"ok",
+    id:'R1', name:'RACK-01', label:'Сеть / Ядро',
+    pos:[-2.5, 0, 0], status:'ok',
     devices:[
-      {id:"DA01", name:"CORE-RTR", type:"router", brand:"Cisco", model:"ASR 1001-X", u:1, h:2, status:"up",
-       ports:[
-         {id:"PA001",name:"Ge0/0/0",type:"eth",status:"up",speed:"1G"},
-         {id:"PA002",name:"Ge0/0/1",type:"eth",status:"up",speed:"1G"},
-         {id:"PA003",name:"Ge0/0/2",type:"eth",status:"down",speed:"1G"},
-         {id:"PA004",name:"Te0/0/0",type:"sfp+",status:"up",speed:"10G"},
-         {id:"PA005",name:"Te0/0/1",type:"sfp+",status:"up",speed:"10G"},
-         {id:"PA006",name:"Te0/0/2",type:"sfp+",status:"down",speed:"10G"},
-       ]},
-      {id:"DA02", name:"CORE-SW-01", type:"switch", brand:"Cisco", model:"Catalyst 9300-48P", u:3, h:1, status:"up",
-       ports:[
-         ...Array.from({length:24},(_,i)=>({id:`PA${10+i}`,name:`Gi1/0/${i+1}`,type:"eth",status:i<20?"up":"down",speed:"1G"})),
-         {id:"PA034",name:"Te1/1/1",type:"sfp+",status:"up",speed:"10G"},
-         {id:"PA035",name:"Te1/1/2",type:"sfp+",status:"up",speed:"10G"},
-       ]},
-      {id:"DA03", name:"CORE-SW-02", type:"switch", brand:"Cisco", model:"Catalyst 9200-24P", u:4, h:1, status:"up",
-       ports:Array.from({length:24},(_,i)=>({id:`PA${40+i}`,name:`Gi0/${i+1}`,type:"eth",status:i<16?"up":"down",speed:"1G"}))},
-      {id:"DA04", name:"FW-01", type:"firewall", brand:"Cisco", model:"Firepower 2110", u:5, h:1, status:"up",
-       ports:[
-         {id:"PA070",name:"Mgmt0/0",type:"eth",status:"up",speed:"1G"},
-         {id:"PA071",name:"Ge0/0",type:"eth",status:"up",speed:"1G"},
-         {id:"PA072",name:"Ge0/1",type:"eth",status:"up",speed:"1G"},
-         {id:"PA073",name:"Ge0/2",type:"eth",status:"up",speed:"1G"},
-         {id:"PA074",name:"Te0/0",type:"sfp+",status:"up",speed:"10G"},
-       ]},
-      {id:"DA05", name:"PATCH-01", type:"patch", brand:"", model:"24-port Cat6", u:6, h:1, status:"up",
-       ports:Array.from({length:24},(_,i)=>({id:`PA${80+i}`,name:`P${i+1}`,type:"rj45",status:i<18?"up":"down",speed:"1G"}))},
-      {id:"DA06", name:"PATCH-02", type:"patch", brand:"", model:"24-port Cat6", u:7, h:1, status:"up",
-       ports:Array.from({length:24},(_,i)=>({id:`PA${110+i}`,name:`P${i+1}`,type:"rj45",status:i<12?"up":"down",speed:"1G"}))},
-      {id:"DA07", name:"UPS-01", type:"ups", brand:"APC", model:"Smart-UPS 3000", u:10, h:2, status:"up",
-       ports:[
-         {id:"PA140",name:"OUTPUT-1",type:"power",status:"up",speed:""},
-         {id:"PA141",name:"OUTPUT-2",type:"power",status:"up",speed:""},
-         {id:"PA142",name:"MGMT",type:"eth",status:"up",speed:"100M"},
-       ]},
+      { id:'D101', name:'MikroTik CSS128-24P', brand:'MikroTik', model:'Cloud Smart Switch CSS128-24P-4S+2Q',
+        type:'switch', u:1, h:1, status:'up', color:0xdde8f0,
+        ports:[...Array.from({length:24},(_,i)=>({id:`P1${String(i).padStart(2,'0')}`,name:`eth${i+1}`,type:'eth',status:i<20?'up':'down',speed:'1G'})),
+               ...Array.from({length:4},(_,i)=>({id:`PS1${i}`,name:`sfp+${i+1}`,type:'sfp',status:'up',speed:'10G'}))] },
+      { id:'D102', name:'MikroTik RB1100AHx4', brand:'MikroTik', model:'RouterBOARD 1100AHx4',
+        type:'router', u:2, h:1, status:'up', color:0xeef2f5,
+        ports:Array.from({length:13},(_,i)=>({id:`P2${String(i).padStart(2,'0')}`,name:`eth${i+1}`,type:'eth',status:i<10?'up':'down',speed:'1G'})) },
+      { id:'D103', name:'PATCH-01', brand:'', model:'24-port Cat6 UTP',
+        type:'patch', u:3, h:1, status:'up', color:0x0d0f16,
+        ports:Array.from({length:24},(_,i)=>({id:`P3${String(i).padStart(2,'0')}`,name:`P${i+1}`,type:'rj45',status:i<18?'up':'down',speed:'1G'})) },
+      { id:'D104', name:'PATCH-02', brand:'', model:'24-port Cat6 UTP',
+        type:'patch', u:4, h:1, status:'up', color:0x0d0f16,
+        ports:Array.from({length:24},(_,i)=>({id:`P4${String(i).padStart(2,'0')}`,name:`P${i+1}`,type:'rj45',status:i<14?'up':'down',speed:'1G'})) },
+      { id:'D105', name:'HDMI Splitter TX4', brand:'Generic', model:'1×4 HDMI Splitter',
+        type:'splitter', u:5, h:1, status:'up', color:0x080a10,
+        ports:[{id:'P500',name:'IN',type:'hdmi',status:'up',speed:''},{id:'P501',name:'OUT1',type:'hdmi',status:'up',speed:''},{id:'P502',name:'OUT2',type:'hdmi',status:'up',speed:''},{id:'P503',name:'OUT3',type:'hdmi',status:'up',speed:''},{id:'P504',name:'OUT4',type:'hdmi',status:'up',speed:''}] },
+      { id:'D106', name:'Cloud Router Switch', brand:'MikroTik', model:'CRS128-24P-4S+2Q',
+        type:'switch', u:6, h:1, status:'warn', color:0xdde8f0,
+        ports:Array.from({length:24},(_,i)=>({id:`P6${String(i).padStart(2,'0')}`,name:`eth${i+1}`,type:'eth',status:i<15?'up':'down',speed:'1G'})) },
+      { id:'D107', name:'CUSTOM-PC-01', brand:'Custom', model:'RGB Workstation',
+        type:'server', u:8, h:5, status:'up', color:0x0a0c14, rgb:true,
+        ports:[{id:'P701',name:'eth0',type:'eth',status:'up',speed:'1G'},{id:'P702',name:'eth1',type:'eth',status:'up',speed:'1G'}] },
     ]
   },
   {
-    id:"R-B", name:"RACK-B", label:"Дистрибуция", u:42, status:"ok",
+    id:'R2', name:'RACK-02', label:'Вещание / Broadcast',
+    pos:[0, 0, 0], status:'warn',
     devices:[
-      {id:"DB01", name:"DIST-SW-01", type:"switch", brand:"Cisco", model:"Catalyst 9200-24P", u:1, h:1, status:"up",
-       ports:Array.from({length:24},(_,i)=>({id:`PB${String(i).padStart(3,'0')}`,name:`Gi0/${i+1}`,type:"eth",status:i<22?"up":"down",speed:"1G"}))},
-      {id:"DB02", name:"DIST-SW-02", type:"switch", brand:"Cisco", model:"Catalyst 9200-24P", u:2, h:1, status:"up",
-       ports:Array.from({length:24},(_,i)=>({id:`PB${String(30+i).padStart(3,'0')}`,name:`Gi0/${i+1}`,type:"eth",status:i<20?"up":"down",speed:"1G"}))},
-      {id:"DB03", name:"ACCESS-SW", type:"switch", brand:"Cisco", model:"Catalyst 2960-X", u:3, h:1, status:"warn",
-       ports:Array.from({length:24},(_,i)=>({id:`PB${String(60+i).padStart(3,'0')}`,name:`Fa0/${i+1}`,type:"eth",status:i<15?"up":"down",speed:"100M"}))},
-      {id:"DB04", name:"PATCH-03", type:"patch", brand:"", model:"24-port Cat6", u:4, h:1, status:"up",
-       ports:Array.from({length:24},(_,i)=>({id:`PB${String(90+i).padStart(3,'0')}`,name:`P${i+1}`,type:"rj45",status:i<20?"up":"down",speed:"1G"}))},
-      {id:"DB05", name:"PATCH-04", type:"patch", brand:"", model:"24-port Cat6", u:5, h:1, status:"up",
-       ports:Array.from({length:24},(_,i)=>({id:`PB${String(120+i).padStart(3,'0')}`,name:`P${i+1}`,type:"rj45",status:i<14?"up":"down",speed:"1G"}))},
+      { id:'D201', name:'Xcruiser XDSR480HD', brand:'Xcruiser', model:'XDSR480HD PVR',
+        type:'receiver', u:1, h:1, status:'up', color:0x1a1010,
+        ports:[{id:'P801',name:'LNB-IN',type:'coax',status:'up',speed:''},{id:'P802',name:'LNB-OUT',type:'coax',status:'up',speed:''},{id:'P803',name:'SPDIF',type:'audio',status:'up',speed:''},{id:'P804',name:'RS-232',type:'serial',status:'up',speed:''},{id:'P805',name:'USB',type:'usb',status:'up',speed:''},{id:'P806',name:'LAN',type:'eth',status:'up',speed:'100M'}] },
+      { id:'D202', name:'Xcruiser XDSR480HD', brand:'Xcruiser', model:'XDSR480HD PVR',
+        type:'receiver', u:2, h:1, status:'up', color:0x1a1010,
+        ports:[{id:'P811',name:'LNB-IN',type:'coax',status:'up',speed:''},{id:'P812',name:'LNB-OUT',type:'coax',status:'up',speed:''},{id:'P813',name:'SPDIF',type:'audio',status:'up',speed:''},{id:'P814',name:'RS-232',type:'serial',status:'up',speed:''},{id:'P815',name:'USB',type:'usb',status:'up',speed:''},{id:'P816',name:'LAN',type:'eth',status:'up',speed:'100M'}] },
+      { id:'D203', name:'Xcruiser XDSR480HD', brand:'Xcruiser', model:'XDSR480HD PVR',
+        type:'receiver', u:3, h:1, status:'down', color:0x1a1010,
+        ports:[{id:'P821',name:'LNB-IN',type:'coax',status:'down',speed:''},{id:'P822',name:'LNB-OUT',type:'coax',status:'down',speed:''},{id:'P823',name:'RS-232',type:'serial',status:'down',speed:''}] },
+      { id:'D204', name:'Video Splitter TX4', brand:'Generic', model:'1×4 RF Splitter',
+        type:'splitter', u:4, h:1, status:'up', color:0x080808,
+        ports:[{id:'P831',name:'RF-IN',type:'coax',status:'up',speed:''},{id:'P832',name:'RF-OUT1',type:'coax',status:'up',speed:''},{id:'P833',name:'RF-OUT2',type:'coax',status:'up',speed:''},{id:'P834',name:'RF-OUT3',type:'coax',status:'up',speed:''}] },
+      { id:'D205', name:'HDMI Matrix 4×4', brand:'Generic', model:'HDMI Matrix Switch 4×4',
+        type:'av-switch', u:5, h:1, status:'up', color:0x101010,
+        ports:[{id:'P841',name:'IN1',type:'hdmi',status:'up',speed:''},{id:'P842',name:'IN2',type:'hdmi',status:'up',speed:''},{id:'P843',name:'OUT1',type:'hdmi',status:'up',speed:''},{id:'P844',name:'OUT2',type:'hdmi',status:'up',speed:''}] },
+      { id:'D206', name:'CUSTOM-PC-02', brand:'Custom', model:'RGB Workstation',
+        type:'server', u:7, h:5, status:'up', color:0x0a0c14, rgb:true,
+        ports:[{id:'P851',name:'eth0',type:'eth',status:'up',speed:'1G'},{id:'P852',name:'eth1',type:'eth',status:'up',speed:'1G'}] },
     ]
   },
   {
-    id:"R-C", name:"RACK-C", label:"Вещание / MUX", u:42, status:"ok",
+    id:'R3', name:'RACK-03', label:'Серверы / Dell',
+    pos:[2.5, 0, 0], status:'ok',
     devices:[
-      {id:"DC01", name:"ENCODER-01", type:"encoder", brand:"Harmonic", model:"Electra X2", u:1, h:2, status:"up",
-       ports:[
-         {id:"PC001",name:"SDI-IN-1",type:"asi",status:"up",speed:""},
-         {id:"PC002",name:"SDI-IN-2",type:"asi",status:"up",speed:""},
-         {id:"PC003",name:"SDI-IN-3",type:"asi",status:"down",speed:""},
-         {id:"PC004",name:"ASI-OUT-1",type:"asi",status:"up",speed:""},
-         {id:"PC005",name:"ASI-OUT-2",type:"asi",status:"up",speed:""},
-         {id:"PC006",name:"GE-MGMT",type:"eth",status:"up",speed:"1G"},
-       ]},
-      {id:"DC02", name:"IRD-01", type:"ird", brand:"Cisco", model:"D9854", u:3, h:1, status:"up",
-       ports:[
-         {id:"PC010",name:"SAT-IN",type:"rf",status:"up",speed:""},
-         {id:"PC011",name:"ASI-IN",type:"asi",status:"up",speed:""},
-         {id:"PC012",name:"ASI-OUT",type:"asi",status:"up",speed:""},
-         {id:"PC013",name:"GE-MGMT",type:"eth",status:"up",speed:"1G"},
-       ]},
-      {id:"DC03", name:"MUX-01", type:"mux", brand:"Ericsson", model:"EN8190", u:4, h:2, status:"up",
-       ports:[
-         {id:"PC020",name:"ASI-IN-1",type:"asi",status:"up",speed:""},
-         {id:"PC021",name:"ASI-IN-2",type:"asi",status:"up",speed:""},
-         {id:"PC022",name:"ASI-IN-3",type:"asi",status:"up",speed:""},
-         {id:"PC023",name:"ASI-IN-4",type:"asi",status:"up",speed:""},
-         {id:"PC024",name:"ASI-OUT-1",type:"asi",status:"up",speed:""},
-         {id:"PC025",name:"ASI-OUT-2",type:"asi",status:"up",speed:""},
-         {id:"PC026",name:"GE-MGMT",type:"eth",status:"up",speed:"1G"},
-       ]},
-      {id:"DC04", name:"MOD-01", type:"modulator", brand:"Tandberg", model:"DVB-S2 5991", u:6, h:1, status:"up",
-       ports:[
-         {id:"PC030",name:"ASI-IN",type:"asi",status:"up",speed:""},
-         {id:"PC031",name:"IF-OUT",type:"rf",status:"up",speed:""},
-         {id:"PC032",name:"RF-OUT",type:"rf",status:"up",speed:""},
-         {id:"PC033",name:"MGMT",type:"eth",status:"up",speed:"100M"},
-       ]},
-      {id:"DC05", name:"MOD-02", type:"modulator", brand:"Tandberg", model:"DVB-S2 5991", u:7, h:1, status:"up",
-       ports:[
-         {id:"PC040",name:"ASI-IN",type:"asi",status:"up",speed:""},
-         {id:"PC041",name:"IF-OUT",type:"rf",status:"up",speed:""},
-         {id:"PC042",name:"RF-OUT",type:"rf",status:"up",speed:""},
-         {id:"PC043",name:"MGMT",type:"eth",status:"up",speed:"100M"},
-       ]},
-      {id:"DC06", name:"COMBINER", type:"combiner", brand:"Anritsu", model:"MX269020A", u:8, h:1, status:"up",
-       ports:[
-         {id:"PC050",name:"RF-IN-1",type:"rf",status:"up",speed:""},
-         {id:"PC051",name:"RF-IN-2",type:"rf",status:"up",speed:""},
-         {id:"PC052",name:"RF-OUT",type:"rf",status:"up",speed:""},
-       ]},
-    ]
-  },
-  {
-    id:"R-D", name:"RACK-D", label:"Спутник / VSAT", u:42, status:"warn",
-    devices:[
-      {id:"DD01", name:"VSAT-MDM", type:"modem", brand:"iDirect", model:"Evolution X7", u:1, h:1, status:"up",
-       ports:[
-         {id:"PD001",name:"TX-OUT",type:"rf",status:"up",speed:""},
-         {id:"PD002",name:"RX-IN",type:"rf",status:"up",speed:""},
-         {id:"PD003",name:"LAN-1",type:"eth",status:"up",speed:"1G"},
-         {id:"PD004",name:"LAN-2",type:"eth",status:"up",speed:"1G"},
-         {id:"PD005",name:"MGMT",type:"eth",status:"up",speed:"100M"},
-       ]},
-      {id:"DD02", name:"SAT-RTR", type:"router", brand:"Hughes", model:"HX200", u:2, h:2, status:"up",
-       ports:[
-         {id:"PD010",name:"WAN-SAT",type:"rf",status:"up",speed:""},
-         {id:"PD011",name:"LAN-1",type:"eth",status:"up",speed:"1G"},
-         {id:"PD012",name:"LAN-2",type:"eth",status:"up",speed:"1G"},
-         {id:"PD013",name:"RF-OUT",type:"rf",status:"up",speed:""},
-       ]},
-      {id:"DD03", name:"IBUC-CTL", type:"modem", brand:"Terrasat", model:"IBUC-G", u:4, h:1, status:"down",
-       ports:[
-         {id:"PD020",name:"IF-IN",type:"rf",status:"down",speed:""},
-         {id:"PD021",name:"RF-OUT",type:"rf",status:"down",speed:""},
-         {id:"PD022",name:"MGMT",type:"eth",status:"down",speed:"100M"},
-       ]},
-    ]
-  },
-  {
-    id:"R-E", name:"RACK-E", label:"Серверы", u:42, status:"ok",
-    devices:[
-      {id:"DE01", name:"SRV-01", type:"server", brand:"Dell", model:"PowerEdge R740", u:1, h:2, status:"up",
-       ports:[
-         {id:"PE001",name:"iDRAC",type:"eth",status:"up",speed:"1G"},
-         {id:"PE002",name:"em1",type:"eth",status:"up",speed:"1G"},
-         {id:"PE003",name:"em2",type:"eth",status:"up",speed:"1G"},
-         {id:"PE004",name:"p1p1",type:"sfp+",status:"up",speed:"10G"},
-         {id:"PE005",name:"p1p2",type:"sfp+",status:"up",speed:"10G"},
-       ]},
-      {id:"DE02", name:"SRV-02", type:"server", brand:"Dell", model:"PowerEdge R740", u:3, h:2, status:"up",
-       ports:[
-         {id:"PE010",name:"iDRAC",type:"eth",status:"up",speed:"1G"},
-         {id:"PE011",name:"em1",type:"eth",status:"up",speed:"1G"},
-         {id:"PE012",name:"em2",type:"eth",status:"up",speed:"1G"},
-         {id:"PE013",name:"p1p1",type:"sfp+",status:"up",speed:"10G"},
-         {id:"PE014",name:"p1p2",type:"sfp+",status:"down",speed:"10G"},
-       ]},
-      {id:"DE03", name:"SRV-03", type:"server", brand:"Dell", model:"PowerEdge R640", u:5, h:1, status:"up",
-       ports:[
-         {id:"PE020",name:"iDRAC",type:"eth",status:"up",speed:"1G"},
-         {id:"PE021",name:"em1",type:"eth",status:"up",speed:"1G"},
-         {id:"PE022",name:"em2",type:"eth",status:"down",speed:"1G"},
-         {id:"PE023",name:"p1p1",type:"sfp+",status:"up",speed:"10G"},
-       ]},
-      {id:"DE04", name:"NAS-01", type:"server", brand:"Synology", model:"RS3617xs+", u:6, h:2, status:"up",
-       ports:[
-         {id:"PE030",name:"eth0",type:"eth",status:"up",speed:"1G"},
-         {id:"PE031",name:"eth1",type:"eth",status:"up",speed:"1G"},
-         {id:"PE032",name:"10GbE-1",type:"sfp+",status:"up",speed:"10G"},
-         {id:"PE033",name:"10GbE-2",type:"sfp+",status:"up",speed:"10G"},
-       ]},
-      {id:"DE05", name:"KVM-01", type:"patch", brand:"ATEN", model:"KVM Switch 16P", u:8, h:1, status:"up",
-       ports:Array.from({length:16},(_,i)=>({id:`PE${String(40+i).padStart(3,'0')}`,name:`P${i+1}`,type:"console",status:i<8?"up":"down",speed:""}))},
-    ]
-  },
-  {
-    id:"R-F", name:"RACK-F", label:"Управление", u:42, status:"ok",
-    devices:[
-      {id:"DF01", name:"MGMT-SW", type:"switch", brand:"Cisco", model:"Catalyst 2960-X", u:1, h:1, status:"up",
-       ports:Array.from({length:24},(_,i)=>({id:`PF${String(i).padStart(3,'0')}`,name:`Fa0/${i+1}`,type:"eth",status:i<18?"up":"down",speed:"100M"}))},
-      {id:"DF02", name:"CONSOLE", type:"modem", brand:"Opengear", model:"IM7208", u:2, h:1, status:"up",
-       ports:[
-         {id:"PF030",name:"NET-1",type:"eth",status:"up",speed:"1G"},
-         {id:"PF031",name:"NET-2",type:"eth",status:"up",speed:"1G"},
-         ...Array.from({length:8},(_,i)=>({id:`PF${String(32+i).padStart(3,'0')}`,name:`SER${i+1}`,type:"serial",status:"up",speed:""})),
-       ]},
-      {id:"DF03", name:"PATCH-05", type:"patch", brand:"", model:"24-port Cat6", u:3, h:1, status:"up",
-       ports:Array.from({length:24},(_,i)=>({id:`PF${String(50+i).padStart(3,'0')}`,name:`P${i+1}`,type:"rj45",status:i<20?"up":"down",speed:"1G"}))},
+      { id:'D301', name:'Dell PowerEdge T630', brand:'Dell', model:'PowerEdge T630 Tower',
+        type:'server', u:1, h:6, status:'up', color:0x10121e,
+        ports:[{id:'P901',name:'eth0',type:'eth',status:'up',speed:'1G'},{id:'P902',name:'eth1',type:'eth',status:'up',speed:'1G'},{id:'P903',name:'iDRAC',type:'eth',status:'up',speed:'1G'}] },
+      { id:'D302', name:'Dell PowerEdge T630', brand:'Dell', model:'PowerEdge T630 Tower',
+        type:'server', u:7, h:6, status:'up', color:0x10121e,
+        ports:[{id:'P911',name:'eth0',type:'eth',status:'up',speed:'1G'},{id:'P912',name:'eth1',type:'eth',status:'up',speed:'1G'},{id:'P913',name:'iDRAC',type:'eth',status:'up',speed:'1G'}] },
+      { id:'D303', name:'NAS Synology', brand:'Synology', model:'DS920+ NAS',
+        type:'nas', u:13, h:2, status:'up', color:0x1a1c24,
+        ports:[{id:'P921',name:'LAN1',type:'eth',status:'up',speed:'1G'},{id:'P922',name:'LAN2',type:'eth',status:'up',speed:'1G'}] },
+      { id:'D304', name:'APC Smart-UPS 1500', brand:'APC', model:'Smart-UPS SMT1500I',
+        type:'ups', u:15, h:3, status:'up', color:0x1a1a1a,
+        ports:[{id:'P931',name:'OUT1',type:'power',status:'up',speed:''},{id:'P932',name:'OUT2',type:'power',status:'up',speed:''},{id:'P933',name:'MGMT',type:'eth',status:'up',speed:'100M'}] },
     ]
   },
 ];
 
-const INITIAL_CABLES = [
-  {id:"C001", from:"PA004", to:"PA034", label:"10G Uplink"},
-  {id:"C002", from:"PA005", to:"PB000", label:"Dist Link"},
-  {id:"C003", from:"PC004", to:"PC020", label:"ASI Feed 1"},
-  {id:"C004", from:"PC005", to:"PC021", label:"ASI Feed 2"},
-  {id:"C005", from:"PC024", to:"PC030", label:"MUX→MOD-01"},
-  {id:"C006", from:"PC025", to:"PC040", label:"MUX→MOD-02"},
-  {id:"C007", from:"PC031", to:"PC050", label:"IF to Combiner"},
-  {id:"C008", from:"PC041", to:"PC051", label:"IF to Combiner"},
+const CABLES = [
+  {id:'C1',from:'P100',to:'P200',color:0x4a90e2,label:'Uplink Core→Dist'},
+  {id:'C2',from:'P101',to:'P601',color:0x4a90e2,label:'Redundant Link'},
+  {id:'C3',from:'P801',to:'P811',color:0xff8c00,label:'SAT Feed L1'},
+  {id:'C4',from:'P901',to:'P300',color:0x00d4ff,label:'Server 1 → Patch'},
+  {id:'C5',from:'P911',to:'P301',color:0x00d4ff,label:'Server 2 → Patch'},
+  {id:'C6',from:'PS10',to:'P701',color:0x00ff88,label:'SFP+ Uplink'},
 ];
 
 // ═══════════════════════════════════════════════════════
-//  CONSTANTS / MAPS
+//  PORT COLORS
 // ═══════════════════════════════════════════════════════
-const TYPE_COLORS = {
-  router:'#4a90e2', switch:'#00ff88', firewall:'#ff3355',
-  mux:'#a855f7', modulator:'#ff8c00', combiner:'#ff6b35',
-  ird:'#ffd600', encoder:'#00d4ff', server:'#6080ff',
-  ups:'#ff3355', patch:'#404060', modem:'#00d4ff', vsat:'#00d4ff',
-};
-
 const PORT_COLORS = {
-  eth:'#4a90e2', rj45:'#4a90e2', 'sfp+':'#00d4ff', sfp:'#00d4ff',
-  asi:'#00ff88', rf:'#ff8c00', coax:'#ff8c00', fiber:'#ffd600',
-  power:'#ff3355', serial:'#a855f7', console:'#6080ff',
-  sat:'#ff8c00', sdi:'#00ff88',
-};
-
-const PORT_TYPE_LABEL = {
-  eth:'ETH', rj45:'RJ45', 'sfp+':'SFP+', sfp:'SFP',
-  asi:'ASI', rf:'RF/COAX', coax:'COAX', fiber:'FIBER',
-  power:'POWER', serial:'SERIAL', console:'CONSOLE',
-  sat:'SAT', sdi:'SDI',
+  eth:0x4a90e2, sfp:0x00ff88, 'sfp+':0x00ff88, rj45:0x00d4ff,
+  coax:0xff8c00, hdmi:0xa855f7, audio:0xffd600, serial:0xff6b35,
+  usb:0x60a0ff, power:0xff3355, fiber:0x00ffff,
 };
 
 // ═══════════════════════════════════════════════════════
-//  STATE
+//  RENDERER + SCENE
 // ═══════════════════════════════════════════════════════
-const state = {
-  view: 'overview',
-  activeRackId: null,
-  cables: [],
-  drawingCable: null,
-  selectedCableId: null,
-  draggingCableEnd: null,
-  mouseX: 0,
-  mouseY: 0,
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+const labelRenderer = new CSS2DRenderer();
+labelRenderer.setSize(window.innerWidth, window.innerHeight);
+labelRenderer.domElement.style.cssText = 'position:fixed;top:0;left:0;pointer-events:none;z-index:5;';
+document.body.appendChild(labelRenderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x020408);
+scene.fog = new THREE.FogExp2(0x020408, 0.07);
+
+const camera = new THREE.PerspectiveCamera(58, window.innerWidth / window.innerHeight, 0.01, 80);
+camera.position.set(0, 4.5, 7.5);
+
+// Post-processing
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.0, 0.45, 0.82);
+composer.addPass(bloom);
+composer.addPass(new OutputPass());
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.055;
+controls.target.set(0, 1.2, 0);
+controls.minDistance = 1.5;
+controls.maxDistance = 18;
+controls.maxPolarAngle = Math.PI * 0.82;
+
+// ═══════════════════════════════════════════════════════
+//  MATERIALS
+// ═══════════════════════════════════════════════════════
+const M = {
+  floor: new THREE.MeshStandardMaterial({color:0x080c14,roughness:0.12,metalness:0.05}),
+  wall:  new THREE.MeshStandardMaterial({color:0x0c1018,roughness:0.85}),
+  ceil:  new THREE.MeshStandardMaterial({color:0x080a10,roughness:0.9}),
+  rackBody: new THREE.MeshStandardMaterial({color:0x0a0c10,roughness:0.25,metalness:0.92}),
+  rackInner:new THREE.MeshStandardMaterial({color:0x060809,roughness:0.55,metalness:0.3}),
+  rail:  new THREE.MeshStandardMaterial({color:0x222840,roughness:0.15,metalness:0.98}),
+  floor_emit: new THREE.MeshStandardMaterial({color:0x00d4ff,emissive:new THREE.Color(0x00d4ff),emissiveIntensity:0.06,transparent:true,opacity:0.12}),
 };
 
-// Port id → port object lookup
-const portMap = {};
-// Port id → device lookup
-const portDeviceMap = {};
+// ═══════════════════════════════════════════════════════
+//  ROOM
+// ═══════════════════════════════════════════════════════
+function buildRoom() {
+  const g = new THREE.Group();
+  const W=13, D=9, H=3.4;
 
-function buildPortMap() {
-  for (const rack of RACKS) {
-    for (const dev of rack.devices) {
-      for (const port of dev.ports) {
-        portMap[port.id] = port;
-        portDeviceMap[port.id] = dev;
+  // Floor
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(W,D,1,1), M.floor);
+  floor.rotation.x = -Math.PI/2; floor.receiveShadow = true;
+  g.add(floor);
+
+  // Floor grid
+  const grid = new THREE.GridHelper(W, 26, 0x0a1828, 0x060e18);
+  grid.position.y = 0.001;
+  g.add(grid);
+
+  // Walls
+  const bw = new THREE.Mesh(new THREE.PlaneGeometry(W,H), M.wall);
+  bw.position.set(0,H/2,-D/2); bw.receiveShadow=true; g.add(bw);
+  const lw = new THREE.Mesh(new THREE.PlaneGeometry(D,H), M.wall);
+  lw.position.set(-W/2,H/2,0); lw.rotation.y=Math.PI/2; lw.receiveShadow=true; g.add(lw);
+  const rw = new THREE.Mesh(new THREE.PlaneGeometry(D,H), M.wall);
+  rw.position.set(W/2,H/2,0); rw.rotation.y=-Math.PI/2; rw.receiveShadow=true; g.add(rw);
+
+  // Ceiling
+  const ceil = new THREE.Mesh(new THREE.PlaneGeometry(W,D), M.ceil);
+  ceil.rotation.x=Math.PI/2; ceil.position.y=H; g.add(ceil);
+
+  // Ceiling light bars
+  const lbMat = new THREE.MeshStandardMaterial({
+    color:0x6070ff,emissive:new THREE.Color(0x3040ff),emissiveIntensity:0.4,roughness:0.9
+  });
+  for(let z=-2.5;z<=2.5;z+=2.5){
+    const lb = new THREE.Mesh(new THREE.BoxGeometry(8,0.05,0.14),lbMat);
+    lb.position.set(0,H-0.025,z);
+    g.add(lb);
+    const sl = new THREE.SpotLight(0x4050cc,1.2,7,Math.PI*0.35,0.6,1);
+    sl.position.set(0,H-0.1,z);
+    sl.castShadow=true;
+    sl.shadow.mapSize.set(512,512);
+    const st = new THREE.Object3D();
+    st.position.set(0,0,z);
+    scene.add(st); sl.target=st;
+    g.add(sl);
+  }
+
+  // Cable tray above racks (from photo: runs over racks)
+  const trayMat = new THREE.MeshStandardMaterial({color:0x141820,roughness:0.3,metalness:0.85});
+  const tray = new THREE.Mesh(new THREE.BoxGeometry(9,0.04,0.35),trayMat);
+  tray.position.set(0,2.35,-0.6); g.add(tray);
+  // Tray sides
+  for(const xs of[-4.5,4.5]){
+    const ts = new THREE.Mesh(new THREE.BoxGeometry(0.03,0.12,0.35),trayMat);
+    ts.position.set(xs,2.35,-0.6); g.add(ts);
+  }
+
+  return g;
+}
+
+// ═══════════════════════════════════════════════════════
+//  RACK FRAME
+// ═══════════════════════════════════════════════════════
+const U_H = 0.04445;
+
+function buildRackFrame(rackData) {
+  const g = new THREE.Group();
+  const RW=0.6, RD=1.02, RH=42*U_H+0.12;
+
+  // Main body
+  const body = new THREE.Mesh(new THREE.BoxGeometry(RW,RH,RD), M.rackBody);
+  body.position.y = RH/2;
+  body.castShadow=true; body.receiveShadow=true;
+  body.userData = {type:'rack',rackId:rackData.id};
+  g.add(body);
+
+  // Front panel recess
+  const front = new THREE.Mesh(new THREE.BoxGeometry(RW-0.045,RH-0.05,0.018), M.rackInner);
+  front.position.set(0,RH/2,RD/2-0.008);
+  g.add(front);
+
+  // Mounting rails
+  const railGeo = new THREE.BoxGeometry(0.022,RH-0.06,0.022);
+  for(const x of[-RW/2+0.038, RW/2-0.038]){
+    const r = new THREE.Mesh(railGeo, M.rail);
+    r.position.set(x,RH/2,RD/2-0.04);
+    g.add(r);
+  }
+
+  // U-number slots (visual detail)
+  const slotMat = new THREE.MeshStandardMaterial({color:0x0c1020,roughness:0.8});
+  for(let u=0;u<42;u+=2){
+    const slot = new THREE.Mesh(new THREE.BoxGeometry(0.012,0.001,0.008),slotMat);
+    slot.position.set(-RW/2+0.038, u*U_H+U_H/2+0.06, RD/2-0.03);
+    g.add(slot);
+  }
+
+  // Bottom + top panels
+  const panelGeo = new THREE.BoxGeometry(RW,0.025,RD);
+  g.add(Object.assign(new THREE.Mesh(panelGeo,M.rackBody),{position:new THREE.Vector3(0,0.012,0)}));
+  g.add(Object.assign(new THREE.Mesh(panelGeo,M.rackBody),{position:new THREE.Vector3(0,RH+0.012,0)}));
+
+  // Perforated back panel (visual)
+  const backPanelMat = new THREE.MeshStandardMaterial({color:0x080a0e,roughness:0.7,metalness:0.5});
+  const backPanel = new THREE.Mesh(new THREE.BoxGeometry(RW-0.04,RH-0.04,0.01),backPanelMat);
+  backPanel.position.set(0,RH/2,-RD/2+0.005);
+  g.add(backPanel);
+
+  // Status LED on top
+  const stColor = rackData.status==='ok' ? 0x00ff88 : rackData.status==='warn' ? 0xff8c00 : 0xff3355;
+  const stLed = new THREE.Mesh(
+    new THREE.SphereGeometry(0.008,8,8),
+    new THREE.MeshStandardMaterial({color:stColor,emissive:new THREE.Color(stColor),emissiveIntensity:2.5})
+  );
+  stLed.position.set(RW/2-0.03,RH+0.03,RD/2-0.03);
+  g.add(stLed);
+
+  // Rack glow point light
+  const gl = new THREE.PointLight(0x00d4ff,0.6,2.0);
+  gl.position.set(0,RH*0.5,RD/2+0.2);
+  g.add(gl);
+
+  return g;
+}
+
+// ═══════════════════════════════════════════════════════
+//  DEVICE MODELS
+// ═══════════════════════════════════════════════════════
+function buildDevice(dev) {
+  const g = new THREE.Group();
+  const DW=0.535, DD=0.26, h=U_H*dev.h;
+
+  // Body
+  const bodyColor = dev.color || 0x101218;
+  const isMetal = dev.type==='switch' || dev.type==='router';
+  const bodyMat = new THREE.MeshStandardMaterial({
+    color:bodyColor, roughness:isMetal?0.22:0.65, metalness:isMetal?0.82:0.3
+  });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(DW,h-0.002,DD),bodyMat);
+  body.castShadow=true;
+  body.userData = {type:'device', deviceId:dev.id, device:dev};
+  g.add(body);
+
+  // Front face (slightly different shade, more detail)
+  const frontColor = new THREE.Color(bodyColor).multiplyScalar(1.6);
+  const fMat = new THREE.MeshStandardMaterial({color:frontColor,roughness:0.35,metalness:0.6});
+  const fFace = new THREE.Mesh(new THREE.BoxGeometry(DW-0.008,h-0.004,0.006),fMat);
+  fFace.position.z = DD/2+0.001;
+  g.add(fFace);
+
+  // Status LED
+  const stColor = dev.status==='up' ? 0x00ff88 : dev.status==='warn' ? 0xff8c00 : 0xff3355;
+  const stMat = new THREE.MeshStandardMaterial({
+    color:stColor, emissive:new THREE.Color(stColor), emissiveIntensity:2.2
+  });
+  const stLed = new THREE.Mesh(new THREE.SphereGeometry(0.0038,8,8),stMat);
+  stLed.position.set(DW/2-0.018, 0, DD/2+0.007);
+  g.add(stLed);
+
+  // Port indicators on front face
+  if(dev.ports && dev.ports.length){
+    const maxP = Math.min(dev.ports.length, 24);
+    const pSize = 0.007, pGap = 0.013;
+    const startX = -(maxP*pGap)/2 + pGap/2;
+    for(let i=0;i<maxP;i++){
+      const port = dev.ports[i];
+      const pc = port.status==='up' ? (PORT_COLORS[port.type]||0x4a90e2) : 0x0c0e14;
+      const pMat = new THREE.MeshStandardMaterial({
+        color:pc,
+        emissive: port.status==='up' ? new THREE.Color(pc) : new THREE.Color(0,0,0),
+        emissiveIntensity: port.status==='up' ? 1.0 : 0,
+        roughness:0.2
+      });
+      const pm = new THREE.Mesh(new THREE.BoxGeometry(pSize,pSize*1.3,0.003),pMat);
+      pm.position.set(startX+i*pGap, 0, DD/2+0.004);
+      pm.userData = {type:'port',port};
+      g.add(pm);
+    }
+  }
+
+  // ── PATCH PANEL ──
+  if(dev.type==='patch'){
+    const cols=24;
+    const pw=(DW-0.025)/cols;
+    const phMat = new THREE.MeshStandardMaterial({color:0x1a2840,emissive:new THREE.Color(0x0a1828),emissiveIntensity:0.3,roughness:0.3,metalness:0.5});
+    for(let c=0;c<cols;c++){
+      const ph = new THREE.Mesh(new THREE.BoxGeometry(pw*0.55,h*0.45,0.009),phMat);
+      ph.position.set(-DW/2+0.012+c*pw+pw/2, 0, DD/2+0.003);
+      g.add(ph);
+    }
+  }
+
+  // ── UPS ──
+  if(dev.type==='ups'){
+    const grillMat = new THREE.MeshStandardMaterial({color:0x080a0e,roughness:0.9});
+    for(let row=0;row<6;row++){
+      const gr = new THREE.Mesh(new THREE.BoxGeometry(DW*0.55,0.003,0.005),grillMat);
+      gr.position.set(0, -h/2+h*(row+0.5)/7, DD/2+0.004);
+      g.add(gr);
+    }
+    // Battery indicator
+    const bMat = new THREE.MeshStandardMaterial({color:0x00ff88,emissive:new THREE.Color(0x00ff88),emissiveIntensity:1.5});
+    for(let b=0;b<5;b++){
+      const bSeg = new THREE.Mesh(new THREE.BoxGeometry(0.012,0.008,0.003),bMat);
+      bSeg.position.set(-DW/2+0.03+b*0.016, h*0.3, DD/2+0.005);
+      g.add(bSeg);
+    }
+  }
+
+  // ── SATELLITE RECEIVER ──
+  if(dev.type==='receiver'){
+    // BNC connectors on front
+    const bncMat = new THREE.MeshStandardMaterial({color:0x888888,roughness:0.2,metalness:0.95});
+    for(let b=0;b<3;b++){
+      const bnc = new THREE.Mesh(new THREE.CylinderGeometry(0.006,0.006,0.01,8),bncMat);
+      bnc.rotation.x=Math.PI/2;
+      bnc.position.set(-DW/2+0.04+b*0.05, 0, DD/2+0.012);
+      g.add(bnc);
+    }
+    // Display indicator
+    const dispMat = new THREE.MeshStandardMaterial({color:0xff4400,emissive:new THREE.Color(0xff4400),emissiveIntensity:1.5});
+    const disp = new THREE.Mesh(new THREE.BoxGeometry(0.06,0.015,0.002),dispMat);
+    disp.position.set(DW/2-0.06, 0, DD/2+0.005);
+    g.add(disp);
+  }
+
+  // ── ROUTER (MikroTik style) ──
+  if(dev.type==='router'){
+    const logoMat = new THREE.MeshStandardMaterial({color:0xffffff,roughness:0.5});
+    // Small logo square
+    const logo = new THREE.Mesh(new THREE.BoxGeometry(0.02,0.01,0.002),logoMat);
+    logo.position.set(-DW/2+0.03,0,DD/2+0.006);
+    g.add(logo);
+  }
+
+  // ── RGB CUSTOM PC ──
+  if(dev.rgb){
+    for(let fi=0;fi<3;fi++){
+      const fanHue = fi*(120/360);
+      const fanColor = new THREE.Color().setHSL(fanHue,1,0.5);
+      const fanRingMat = new THREE.MeshStandardMaterial({
+        color:0x0a0c10,emissive:fanColor.clone(),emissiveIntensity:2.8,
+        roughness:0.1,transparent:true,opacity:0.88
+      });
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.028,0.007,8,24),fanRingMat);
+      ring.position.set(-0.08+fi*0.08, 0, DD/2+0.012);
+      ring.userData = {isRGB:true,fanIndex:fi,isFanRing:true};
+      g.add(ring);
+      // Blades
+      for(let b=0;b<4;b++){
+        const bladeMat = new THREE.MeshStandardMaterial({
+          color:0x080a10,emissive:fanColor.clone(),emissiveIntensity:1.5,transparent:true,opacity:0.7
+        });
+        const blade = new THREE.Mesh(new THREE.BoxGeometry(0.020,0.004,0.002),bladeMat);
+        blade.position.set(-0.08+fi*0.08, 0, DD/2+0.012);
+        blade.rotation.z = b*(Math.PI/2);
+        blade.userData = {isRGB:true,fanIndex:fi,isBlade:true,bladeIdx:b};
+        g.add(blade);
       }
     }
+  }
+
+  g.userData = {device:dev};
+  return g;
+}
+
+// ═══════════════════════════════════════════════════════
+//  CABLES
+// ═══════════════════════════════════════════════════════
+function makeTube(pts, color, r=0.0028){
+  const curve = new THREE.CatmullRomCurve3(pts);
+  const geo = new THREE.TubeGeometry(curve,Math.max(pts.length*5,20),r,5,false);
+  const mat = new THREE.MeshStandardMaterial({
+    color,roughness:0.65,metalness:0.05,
+    emissive:new THREE.Color(color).multiplyScalar(0.08)
+  });
+  return new THREE.Mesh(geo,mat);
+}
+
+function addCableBundles(rackGroup, rackData) {
+  const RD=1.02, RH=42*U_H+0.12;
+  // Front hanging cables (like in photos - chaotic but realistic)
+  const colors=[0x4a90e2,0x4a90e2,0x3a80d0,0x00d4ff,0x00d4ff,0x00ff88,0x1a1a1a,0xff8c00];
+  for(let i=0;i<16;i++){
+    const c=colors[i%colors.length];
+    const sx=(Math.random()-0.5)*0.45;
+    const sy=RH*0.15+Math.random()*RH*0.7;
+    const sag=0.05+Math.random()*0.15;
+    const pts=[
+      new THREE.Vector3(sx, sy, RD/2-0.14),
+      new THREE.Vector3(sx+(Math.random()-0.5)*0.08, sy-0.08, RD/2-0.02),
+      new THREE.Vector3(sx+(Math.random()-0.5)*0.12, sy-0.22-sag, RD/2+0.08),
+      new THREE.Vector3(sx+(Math.random()-0.5)*0.06, sy-0.42-sag*2, RD/2+0.05),
+    ];
+    const cable=makeTube(pts,c,0.0018+Math.random()*0.0018);
+    rackGroup.add(cable);
+  }
+  // Floor cables (like image15 - chaos on floor)
+  for(let i=0;i<8;i++){
+    const c=i<6?0x4a90e2:0x0a0a0a;
+    const ox=(Math.random()-0.5)*0.5;
+    const pts=[
+      new THREE.Vector3(ox, 0.12, RD/2-0.08),
+      new THREE.Vector3(ox+0.1, 0.06, RD/2+0.2),
+      new THREE.Vector3(ox+0.2+Math.random()*0.3, 0.02, RD/2+0.35+Math.random()*0.2),
+      new THREE.Vector3(ox+0.3+Math.random()*0.5, 0.01, RD/2+0.5+Math.random()*0.3),
+    ];
+    rackGroup.add(makeTube(pts,c,0.003+Math.random()*0.002));
   }
 }
 
 // ═══════════════════════════════════════════════════════
-//  PARTICLES
+//  DATA FLOW PARTICLES (between racks via tray)
 // ═══════════════════════════════════════════════════════
-function initParticles() {
-  const canvas = document.getElementById('canvas-bg');
-  const ctx = canvas.getContext('2d');
-  let W, H, particles = [];
-  const N = 65;
+const flowParticles = [];
 
-  function resize() {
-    W = canvas.width = window.innerWidth;
-    H = canvas.height = window.innerHeight;
+function addNetworkFlows(){
+  const flows=[
+    {from:[-2.5,2.3,-0.6],mid:[0,2.38,-0.6],to:[0,2.3,-0.6],     color:0x4a90e2,speed:0.18},
+    {from:[0,2.3,-0.6],   mid:[1.25,2.38,-0.6],to:[2.5,2.3,-0.6], color:0x00d4ff,speed:0.22},
+    {from:[-2.5,2.25,-0.6],mid:[0,2.32,-0.6],to:[2.5,2.25,-0.6],  color:0x00ff88,speed:0.15},
+    {from:[2.5,2.28,-0.6],mid:[0,2.35,-0.6],to:[-2.5,2.28,-0.6],  color:0xff8c00,speed:0.12},
+  ];
+
+  for(const f of flows){
+    const curve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(...f.from),
+      new THREE.Vector3(...f.mid),
+      new THREE.Vector3(...f.to),
+    ]);
+    // Tube
+    scene.add(makeTube(curve.getPoints(16),f.color,0.0025));
+
+    // Particle stream
+    const N=6;
+    const geo=new THREE.BufferGeometry();
+    const pos=new Float32Array(N*3);
+    geo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+    const mat=new THREE.PointsMaterial({color:f.color,size:0.018,transparent:true,opacity:0.95});
+    const pts3=new THREE.Points(geo,mat);
+    scene.add(pts3);
+    flowParticles.push({pts:pts3,curve,N,offset:Math.random(),speed:f.speed});
   }
-
-  function mkParticle() {
-    return {
-      x: Math.random() * W,
-      y: Math.random() * H,
-      vx: (Math.random() - 0.5) * 0.4,
-      vy: (Math.random() - 0.5) * 0.4,
-      r: Math.random() * 1.5 + 0.5,
-      alpha: Math.random() * 0.5 + 0.2,
-    };
-  }
-
-  resize();
-  for (let i = 0; i < N; i++) particles.push(mkParticle());
-  window.addEventListener('resize', resize);
-
-  function draw() {
-    ctx.clearRect(0, 0, W, H);
-    for (const p of particles) {
-      p.x += p.vx; p.y += p.vy;
-      if (p.x < -10) p.x = W + 10;
-      if (p.x > W + 10) p.x = -10;
-      if (p.y < -10) p.y = H + 10;
-      if (p.y > H + 10) p.y = -10;
-
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(0,212,255,${p.alpha})`;
-      ctx.fill();
-    }
-
-    for (let i = 0; i < N; i++) {
-      for (let j = i + 1; j < N; j++) {
-        const dx = particles[i].x - particles[j].x;
-        const dy = particles[i].y - particles[j].y;
-        const dist = Math.sqrt(dx*dx + dy*dy);
-        if (dist < 150) {
-          const alpha = (1 - dist/150) * 0.18;
-          ctx.beginPath();
-          ctx.moveTo(particles[i].x, particles[i].y);
-          ctx.lineTo(particles[j].x, particles[j].y);
-          ctx.strokeStyle = `rgba(0,212,255,${alpha})`;
-          ctx.lineWidth = 0.5;
-          ctx.stroke();
-        }
-      }
-    }
-    requestAnimationFrame(draw);
-  }
-  draw();
 }
 
 // ═══════════════════════════════════════════════════════
-//  CLOCK
+//  SCENE ASSEMBLY
 // ═══════════════════════════════════════════════════════
-function startClock() {
-  function tick() {
-    const now = new Date();
-    const h = String(now.getHours()).padStart(2,'0');
-    const m = String(now.getMinutes()).padStart(2,'0');
-    const s = String(now.getSeconds()).padStart(2,'0');
-    document.getElementById('clock').textContent = `${h}:${m}:${s}`;
+const rackGroups = new Map();
+const allDevices = [];
+
+function buildScene(){
+  // Lights
+  scene.add(new THREE.AmbientLight(0x0a1428,12));
+  const dir = new THREE.DirectionalLight(0x3050a0,1.8);
+  dir.position.set(2,6,4); dir.castShadow=true;
+  dir.shadow.mapSize.set(2048,2048);
+  dir.shadow.camera.left=-8;dir.shadow.camera.right=8;
+  dir.shadow.camera.top=8;dir.shadow.camera.bottom=-8;
+  scene.add(dir);
+  // Colored fill lights
+  const pl1=new THREE.PointLight(0x0060ff,2.5,10); pl1.position.set(-6,2.5,2); scene.add(pl1);
+  const pl2=new THREE.PointLight(0x00ff88,1.8,10); pl2.position.set(6,2.5,2);  scene.add(pl2);
+  const pl3=new THREE.PointLight(0x4030ff,1.2,12); pl3.position.set(0,3,-1.5); scene.add(pl3);
+
+  scene.add(buildRoom());
+
+  for(const rack of RACKS){
+    const rg = new THREE.Group();
+    const [rx,,rz] = rack.pos;
+    rg.position.set(rx,0,rz-0.5);
+
+    rg.add(buildRackFrame(rack));
+
+    const RH=42*U_H+0.12, RD=1.02;
+    for(const dev of rack.devices){
+      const dm = buildDevice(dev);
+      const yPos = (dev.u-1)*U_H + dev.h*U_H/2 + 0.062;
+      dm.position.set(0, yPos, RD/2-0.145);
+      rg.add(dm);
+      allDevices.push({mesh:dm, device:dev, rack});
+    }
+
+    addCableBundles(rg, rack);
+
+    // Floor glow indicator
+    const fi = new THREE.Mesh(new THREE.PlaneGeometry(0.68,1.12),M.floor_emit);
+    fi.rotation.x=-Math.PI/2; fi.position.set(rx,0.001,rz-0.5+0.5);
+    scene.add(fi);
+
+    // Rack CSS2D label
+    const div = document.createElement('div');
+    div.className='rack-label';
+    div.innerHTML = `${rack.name}<br><span style="font-size:8px;font-family:Share Tech Mono;color:#2a4060;letter-spacing:1px">${rack.label}</span>`;
+    const labelObj = new CSS2DObject(div);
+    labelObj.position.set(0, RH+0.18, 0);
+    rg.add(labelObj);
+
+    scene.add(rg);
+    rackGroups.set(rack.id,rg);
   }
-  tick();
-  setInterval(tick, 1000);
+
+  addNetworkFlows();
+
+  // Build rack selector panel
+  buildRackPanel();
+  updateStats();
+}
+
+// ═══════════════════════════════════════════════════════
+//  RACK PANEL UI
+// ═══════════════════════════════════════════════════════
+function buildRackPanel(){
+  const list=document.getElementById('rp-list');
+  list.innerHTML='';
+  for(const rack of RACKS){
+    const dotColor=rack.status==='ok'?'#00ff88':rack.status==='warn'?'#ff8c00':'#ff3355';
+    const item=document.createElement('div');
+    item.className='rp-item';
+    item.id=`rp-${rack.id}`;
+    item.innerHTML=`<div class="rp-dot" style="background:${dotColor};box-shadow:0 0 6px ${dotColor}"></div><div><div class="rp-name">${rack.name}</div><div class="rp-label">${rack.label}</div></div>`;
+    item.onclick=()=>focusRack(rack.id);
+    list.appendChild(item);
+  }
+}
+
+function focusRack(rackId){
+  document.querySelectorAll('.rp-item').forEach(i=>i.classList.remove('active'));
+  document.getElementById(`rp-${rackId}`)?.classList.add('active');
+  const rack=RACKS.find(r=>r.id===rackId);
+  if(!rack)return;
+  const [rx,,rz]=rack.pos;
+  if(currentMode==='iso'){
+    gsap.to(camera.position,{x:rx,y:3,z:rz+4.5,duration:1.4,ease:'power3.inOut'});
+    gsap.to(controls.target,{x:rx,y:1.2,z:rz,duration:1.4,ease:'power3.inOut',onUpdate:()=>controls.update()});
+  }
 }
 
 // ═══════════════════════════════════════════════════════
 //  STATS
 // ═══════════════════════════════════════════════════════
-function updateStats() {
-  let devTotal = 0, devDown = 0, portsUp = 0;
-  for (const rack of RACKS) {
-    for (const dev of rack.devices) {
-      devTotal++;
-      if (dev.status === 'down') devDown++;
-      for (const port of dev.ports) {
-        if (port.status === 'up') portsUp++;
-      }
+function updateStats(){
+  let devs=0,ports=0,warn=0;
+  for(const rack of RACKS){
+    devs+=rack.devices.length;
+    for(const d of rack.devices){
+      if(d.status==='warn'||d.status==='down') warn++;
+      if(d.ports) ports+=d.ports.filter(p=>p.status==='up').length;
     }
   }
-  document.getElementById('stat-devices').textContent = devTotal;
-  document.getElementById('stat-down').textContent = devDown;
-  document.getElementById('stat-cables').textContent = state.cables.length;
-  document.getElementById('stat-ports').textContent = portsUp;
+  document.getElementById('s-devs').textContent=devs;
+  document.getElementById('s-ports').textContent=ports;
+  document.getElementById('s-warn').textContent=warn;
+  document.getElementById('s-cables').textContent=CABLES.length;
+}
+
+function startClock(){
+  const tick=()=>document.getElementById('clock').textContent=new Date().toTimeString().slice(0,8);
+  tick(); setInterval(tick,1000);
 }
 
 // ═══════════════════════════════════════════════════════
-//  FLASH EFFECT
+//  CAMERA MODES
 // ═══════════════════════════════════════════════════════
-function flash(color) {
-  const el = document.getElementById('flash');
-  if (color) {
-    el.style.background = `radial-gradient(ellipse at center, ${color}99 0%, ${color}33 50%, transparent 80%)`;
-  }
-  el.style.opacity = '1';
-  setTimeout(() => {
-    el.style.transition = 'opacity 0.4s ease';
-    el.style.opacity = '0';
-    setTimeout(() => { el.style.transition = 'opacity 0.05s ease'; }, 450);
-  }, 80);
-}
-
-// ═══════════════════════════════════════════════════════
-//  GLITCH TRANSITION
-// ═══════════════════════════════════════════════════════
-function glitchTransition(cb) {
-  const div = document.createElement('div');
-  div.className = 'glitch-overlay';
-  document.body.appendChild(div);
-  div.style.opacity = '1';
-
-  // Multi-layer color shift
-  div.style.animation = 'none';
-  let frame = 0;
-  const shifts = [
-    'hue-rotate(-20deg) saturate(2)',
-    'hue-rotate(20deg) brightness(1.3)',
-    'hue-rotate(-30deg) contrast(1.5)',
-    'hue-rotate(10deg)',
-    'none',
-  ];
-  const interval = setInterval(() => {
-    div.style.filter = shifts[frame % shifts.length] || 'none';
-    div.style.transform = `translateX(${(Math.random()-0.5)*8}px)`;
-    frame++;
-    if (frame > 6) {
-      clearInterval(interval);
-      cb();
-      div.style.opacity = '0';
-      div.style.transition = 'opacity 0.2s ease';
-      setTimeout(() => div.remove(), 300);
-    }
-  }, 40);
-}
-
-// ═══════════════════════════════════════════════════════
-//  OVERVIEW
-// ═══════════════════════════════════════════════════════
-function renderOverview() {
-  const grid = document.getElementById('racks-grid');
-  grid.innerHTML = '';
-
-  for (const rack of RACKS) {
-    const devCount = rack.devices.length;
-    const cableCount = state.cables.filter(c => {
-      const fp = portMap[c.from], tp = portMap[c.to];
-      if (!fp || !tp) return false;
-      const fd = portDeviceMap[c.from], td = portDeviceMap[c.to];
-      return rack.devices.includes(fd) || rack.devices.includes(td);
-    }).length;
-
-    const card = document.createElement('div');
-    card.className = 'rack-card';
-    card.innerHTML = `
-      <div class="rack-card-header">
-        <div>
-          <span class="rack-card-name">${rack.name}</span>
-          <div class="rack-card-label">${rack.label}</div>
-        </div>
-        <div class="status-badge ${rack.status}">${rack.status.toUpperCase()}</div>
-      </div>
-      <div class="rack-mini-vis" id="mini-${rack.id}"></div>
-      <div class="rack-card-footer">
-        <div class="rack-footer-stat">Устройств: <span>${devCount}</span></div>
-        <div class="rack-footer-stat">Кабелей: <span>${cableCount}</span></div>
-      </div>
-    `;
-
-    // Mini visualization
-    const miniVis = card.querySelector(`#mini-${rack.id}`);
-    for (const dev of rack.devices) {
-      const color = TYPE_COLORS[dev.type] || '#404060';
-      const bar = document.createElement('div');
-      bar.className = 'rack-mini-device';
-      bar.style.background = `linear-gradient(90deg, ${color} 0%, ${color}88 30%, ${color}22 100%)`;
-      bar.style.height = `${Math.max(5, dev.h * 5)}px`;
-      miniVis.appendChild(bar);
-    }
-
-    card.addEventListener('click', () => {
-      glitchTransition(() => showRack(rack.id));
-    });
-
-    grid.appendChild(card);
-  }
-}
-
-// ═══════════════════════════════════════════════════════
-//  SHOW / HIDE RACK
-// ═══════════════════════════════════════════════════════
-function showRack(rackId) {
-  state.view = 'rack';
-  state.activeRackId = rackId;
-  state.selectedCableId = null;
-  state.drawingCable = null;
-
-  const overview = document.getElementById('view-overview');
-  const rackView = document.getElementById('view-rack');
-
-  overview.style.opacity = '0';
-  overview.style.pointerEvents = 'none';
-  rackView.classList.add('active');
-
-  const rack = RACKS.find(r => r.id === rackId);
-  document.getElementById('sb-rack-name').textContent = rack.name;
-  document.getElementById('sb-rack-label').textContent = rack.label;
-  document.getElementById('rack-frame-title').textContent = `${rack.name} — ${rack.label}`;
-
-  renderRack(rackId);
-  renderSidebar();
-}
-
-function showOverview() {
-  cancelCableDraw();
-  state.view = 'overview';
-  state.activeRackId = null;
-  state.selectedCableId = null;
-
-  const overview = document.getElementById('view-overview');
-  const rackView = document.getElementById('view-rack');
-
-  rackView.classList.remove('active');
-  overview.style.opacity = '1';
-  overview.style.pointerEvents = 'all';
-
-  renderOverview();
-  updateStats();
-}
-
-// ═══════════════════════════════════════════════════════
-//  RENDER RACK
-// ═══════════════════════════════════════════════════════
-function renderRack(rackId) {
-  const rack = RACKS.find(r => r.id === rackId);
-  const uNumbers = document.getElementById('rack-u-numbers');
-  const devArea = document.getElementById('rack-devices-area');
-  const totalH = rack.u * U_H;
-
-  // U numbers
-  uNumbers.innerHTML = '';
-  uNumbers.style.height = totalH + 'px';
-  for (let u = 1; u <= rack.u; u++) {
-    const div = document.createElement('div');
-    div.className = 'rack-u-num';
-    div.style.height = U_H + 'px';
-    div.textContent = u < 10 ? `0${u}` : u;
-    uNumbers.appendChild(div);
-  }
-
-  // Devices area
-  devArea.innerHTML = '';
-  devArea.style.height = totalH + 'px';
-  devArea.style.position = 'relative';
-
-  // Build occupied u set
-  const occupiedU = new Set();
-  for (const dev of rack.devices) {
-    for (let uu = dev.u; uu < dev.u + dev.h; uu++) occupiedU.add(uu);
-  }
-
-  // Empty slots
-  for (let u = 1; u <= rack.u; u++) {
-    if (!occupiedU.has(u)) {
-      const slot = document.createElement('div');
-      slot.className = 'empty-u';
-      slot.style.top = (u - 1) * U_H + 'px';
-      slot.style.height = U_H + 'px';
-      devArea.appendChild(slot);
-    }
-  }
-
-  // Devices
-  for (const dev of rack.devices) {
-    const color = TYPE_COLORS[dev.type] || '#404060';
-    const devH = dev.h * U_H;
-    const top = (dev.u - 1) * U_H;
-
-    const row = document.createElement('div');
-    row.className = 'device-row';
-    row.style.top = top + 'px';
-    row.style.height = devH + 'px';
-    row.style.position = 'absolute';
-    row.style.left = '0'; row.style.right = '0';
-    row.dataset.devId = dev.id;
-
-    // Status led class
-    const ledCls = dev.status === 'up' ? 'up' : dev.status === 'warn' ? 'warn' : 'down';
-
-    // Background
-    row.style.background = `linear-gradient(90deg, ${color}18 0%, transparent 60%)`;
-
-    row.innerHTML = `
-      <div class="device-accent" style="background:${color};box-shadow:0 0 6px ${color}88;"></div>
-      <div class="device-led">
-        <div class="device-led-dot ${ledCls}"></div>
-      </div>
-      <div class="device-info">
-        <div class="device-name">${dev.name}</div>
-        <div class="device-model">${dev.brand ? dev.brand + ' ' : ''}${dev.model}</div>
-      </div>
-      <div class="device-ports" id="ports-${dev.id}"></div>
-    `;
-
-    devArea.appendChild(row);
-
-    // Ports
-    const portsContainer = row.querySelector(`#ports-${dev.id}`);
-    for (const port of dev.ports) {
-      const pColor = PORT_COLORS[port.type] || '#888';
-      const pdot = document.createElement('div');
-      pdot.className = 'port-dot';
-      pdot.dataset.portId = port.id;
-      const isConnected = state.cables.some(c => c.from === port.id || c.to === port.id);
-      pdot.style.background = port.status === 'up' ? pColor : `${pColor}33`;
-      pdot.style.boxShadow = port.status === 'up' && isConnected
-        ? `0 0 5px ${pColor}, 0 0 10px ${pColor}66`
-        : port.status === 'up' ? `0 0 3px ${pColor}88` : 'none';
-      if (isConnected) pdot.classList.add('connected');
-      if (port.status !== 'up') pdot.classList.add('down-port');
-
-      pdot.addEventListener('mouseenter', e => showPortTooltip(port.id, e));
-      pdot.addEventListener('mouseleave', hidePortTooltip);
-      pdot.addEventListener('click', e => { e.stopPropagation(); onPortClick(port.id); });
-
-      portsContainer.appendChild(pdot);
-    }
-  }
-
-  // Cable SVG overlay
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.classList.add('cable-svg');
-  svg.id = 'cable-svg';
-  svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-
-  // Defs for glow filters
-  const defs = document.createElementNS('http://www.w3.org/2000/svg','defs');
-  svg.appendChild(defs);
-
-  const filter = document.createElementNS('http://www.w3.org/2000/svg','filter');
-  filter.id = 'glow';
-  filter.innerHTML = `<feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>`;
-  defs.appendChild(filter);
-
-  const filterStrong = document.createElementNS('http://www.w3.org/2000/svg','filter');
-  filterStrong.id = 'glow-strong';
-  filterStrong.innerHTML = `<feGaussianBlur stdDeviation="5" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>`;
-  defs.appendChild(filterStrong);
-
-  devArea.appendChild(svg);
-
-  // Mouse tracking for cable draw
-  devArea.addEventListener('mousemove', e => {
-    const rect = devArea.getBoundingClientRect();
-    state.mouseX = e.clientX - rect.left;
-    state.mouseY = e.clientY - rect.top;
-    if (state.drawingCable) updateCablePreview();
-  });
-
-  devArea.addEventListener('click', e => {
-    if (state.drawingCable && e.target === svg) cancelCableDraw();
-  });
-
-  renderCables();
-}
-
-// ═══════════════════════════════════════════════════════
-//  GET PORT CENTER (relative to rack-devices-area)
-// ═══════════════════════════════════════════════════════
-function getPortCenter(portId) {
-  const el = document.querySelector(`[data-port-id="${portId}"]`);
-  if (!el) return null;
-  const area = document.getElementById('rack-devices-area');
-  if (!area) return null;
-  const elRect = el.getBoundingClientRect();
-  const areaRect = area.getBoundingClientRect();
-  return {
-    x: elRect.left - areaRect.left + elRect.width / 2,
-    y: elRect.top - areaRect.top + elRect.height / 2,
-  };
-}
-
-// ═══════════════════════════════════════════════════════
-//  BEZIER PATH
-// ═══════════════════════════════════════════════════════
-function makeBezierPath(x1, y1, x2, y2) {
-  const dy = Math.abs(y2 - y1);
-  const offset = Math.max(dy * 0.45, 40);
-  // Use right-side S-curve for cables
-  return `M ${x1} ${y1} C ${x1 + offset} ${y1}, ${x2 + offset} ${y2}, ${x2} ${y2}`;
-}
-
-// ═══════════════════════════════════════════════════════
-//  RENDER CABLES (SVG)
-// ═══════════════════════════════════════════════════════
-function renderCables() {
-  const svg = document.getElementById('cable-svg');
-  if (!svg) return;
-
-  // Remove existing cable groups (keep defs)
-  const toRemove = svg.querySelectorAll('.cable-group, .cable-preview-group, .cable-del-btn-svg');
-  toRemove.forEach(el => el.remove());
-
-  // Remove DOM delete buttons
-  document.querySelectorAll('.cable-del-btn').forEach(el => el.remove());
-
-  const rack = RACKS.find(r => r.id === state.activeRackId);
-  if (!rack) return;
-
-  // Filter cables relevant to this rack
-  const rackCables = state.cables.filter(cable => {
-    const fd = portDeviceMap[cable.from];
-    const td = portDeviceMap[cable.to];
-    return (fd && rack.devices.includes(fd)) || (td && rack.devices.includes(td));
-  });
-
-  for (const cable of rackCables) {
-    const p1 = getPortCenter(cable.from);
-    const p2 = getPortCenter(cable.to);
-    if (!p1 && !p2) continue;
-
-    // If only one end is in this rack, draw from that end to edge
-    const from = p1 || { x: 0, y: (p2 ? p2.y : 0) };
-    const to = p2 || { x: 0, y: (p1 ? p1.y : 0) };
-    if (!p1 || !p2) continue; // skip cross-rack cables in this view
-
-    const fromPort = portMap[cable.from];
-    const color = cable.color || (fromPort ? PORT_COLORS[fromPort.type] : '#00d4ff') || '#00d4ff';
-
-    const path = makeBezierPath(from.x, from.y, to.x, to.y);
-    const isSelected = cable.id === state.selectedCableId;
-    const dashLen = 6, gapLen = 4;
-
-    const g = document.createElementNS('http://www.w3.org/2000/svg','g');
-    g.classList.add('cable-group');
-    g.dataset.cableId = cable.id;
-    g.style.cursor = 'pointer';
-
-    // Glow layer (blurred)
-    const glowPath = document.createElementNS('http://www.w3.org/2000/svg','path');
-    glowPath.setAttribute('d', path);
-    glowPath.setAttribute('fill', 'none');
-    glowPath.setAttribute('stroke', color);
-    glowPath.setAttribute('stroke-width', isSelected ? '6' : '4');
-    glowPath.setAttribute('stroke-opacity', '0.5');
-    glowPath.setAttribute('stroke-dasharray', `${dashLen} ${gapLen}`);
-    glowPath.setAttribute('filter', isSelected ? 'url(#glow-strong)' : 'url(#glow)');
-    glowPath.style.animation = `cableFlow 1.2s linear infinite`;
-
-    // Sharp top layer
-    const sharpPath = document.createElementNS('http://www.w3.org/2000/svg','path');
-    sharpPath.setAttribute('d', path);
-    sharpPath.setAttribute('fill', 'none');
-    sharpPath.setAttribute('stroke', color);
-    sharpPath.setAttribute('stroke-width', isSelected ? '2.5' : '1.8');
-    sharpPath.setAttribute('stroke-dasharray', `${dashLen} ${gapLen}`);
-    sharpPath.style.animation = `cableFlow 1.2s linear infinite`;
-
-    // Invisible hit area
-    const hitPath = document.createElementNS('http://www.w3.org/2000/svg','path');
-    hitPath.setAttribute('d', path);
-    hitPath.setAttribute('fill', 'none');
-    hitPath.setAttribute('stroke', 'transparent');
-    hitPath.setAttribute('stroke-width', '12');
-    hitPath.style.pointerEvents = 'stroke';
-    hitPath.style.cursor = 'pointer';
-
-    g.appendChild(glowPath);
-    g.appendChild(sharpPath);
-    g.appendChild(hitPath);
-
-    g.addEventListener('click', e => {
-      e.stopPropagation();
-      if (!state.drawingCable) selectCable(cable.id);
-    });
-
-    g.addEventListener('mouseenter', () => {
-      glowPath.setAttribute('stroke-width', '7');
-      sharpPath.setAttribute('stroke-width', '3');
-    });
-    g.addEventListener('mouseleave', () => {
-      glowPath.setAttribute('stroke-width', isSelected ? '6' : '4');
-      sharpPath.setAttribute('stroke-width', isSelected ? '2.5' : '1.8');
-    });
-
-    svg.appendChild(g);
-
-    // Delete button if selected
-    if (isSelected) {
-      const midT = 0.5;
-      const mx = bezierPoint(from.x, from.x + Math.max(Math.abs(to.y - from.y)*0.45,40), to.x + Math.max(Math.abs(to.y - from.y)*0.45,40), to.x, midT);
-      const my = bezierPoint(from.y, from.y, to.y, to.y, midT);
-
-      const btn = document.createElement('div');
-      btn.className = 'cable-del-btn';
-      btn.textContent = '×';
-      btn.title = 'Удалить кабель';
-      const area = document.getElementById('rack-devices-area');
-      const areaRect = area.getBoundingClientRect();
-      btn.style.position = 'absolute';
-      btn.style.left = mx + 'px';
-      btn.style.top = my + 'px';
-      btn.style.zIndex = '60';
-      btn.style.pointerEvents = 'all';
-      area.appendChild(btn);
-      btn.addEventListener('click', e => { e.stopPropagation(); deleteCable(cable.id); });
-    }
-  }
-
-  // Cable preview
-  if (state.drawingCable) {
-    const { fromX, fromY, mouseX, mouseY } = state.drawingCable;
-    const pg = document.createElementNS('http://www.w3.org/2000/svg','g');
-    pg.classList.add('cable-preview-group');
-
-    const prevPath = makeBezierPath(fromX, fromY, mouseX, mouseY);
-    const prevGlow = document.createElementNS('http://www.w3.org/2000/svg','path');
-    prevGlow.setAttribute('d', prevPath);
-    prevGlow.setAttribute('fill','none');
-    prevGlow.setAttribute('stroke', '#00d4ff');
-    prevGlow.setAttribute('stroke-width','3');
-    prevGlow.setAttribute('stroke-opacity','0.35');
-    prevGlow.setAttribute('stroke-dasharray','5 5');
-    prevGlow.setAttribute('filter','url(#glow)');
-
-    const prevSharp = document.createElementNS('http://www.w3.org/2000/svg','path');
-    prevSharp.setAttribute('d', prevPath);
-    prevSharp.setAttribute('fill','none');
-    prevSharp.setAttribute('stroke','#00d4ff');
-    prevSharp.setAttribute('stroke-width','1.2');
-    prevSharp.setAttribute('stroke-dasharray','5 5');
-    prevSharp.setAttribute('stroke-opacity','0.7');
-
-    pg.appendChild(prevGlow);
-    pg.appendChild(prevSharp);
-    svg.appendChild(pg);
-  }
-
-  // Add CSS animation for flow if not exists
-  if (!document.getElementById('cable-anim-style')) {
-    const style = document.createElement('style');
-    style.id = 'cable-anim-style';
-    style.textContent = `@keyframes cableFlow { from { stroke-dashoffset: 20; } to { stroke-dashoffset: 0; } }`;
-    document.head.appendChild(style);
-  }
-}
-
-// Cubic bezier point helper
-function bezierPoint(p0, p1, p2, p3, t) {
-  return (1-t)**3*p0 + 3*(1-t)**2*t*p1 + 3*(1-t)*t**2*p2 + t**3*p3;
-}
-
-// ═══════════════════════════════════════════════════════
-//  CABLE INTERACTIONS
-// ═══════════════════════════════════════════════════════
-function onPortClick(portId) {
-  if (state.drawingCable) {
-    if (state.drawingCable.fromPortId === portId) {
-      cancelCableDraw();
-    } else {
-      completeCableDraw(portId);
-    }
-    return;
-  }
-  startCableDraw(portId);
-}
-
-function startCableDraw(portId) {
-  const pos = getPortCenter(portId);
-  if (!pos) return;
-
-  state.drawingCable = {
-    fromPortId: portId,
-    fromX: pos.x,
-    fromY: pos.y,
-    mouseX: pos.x,
-    mouseY: pos.y,
-  };
-
-  // Highlight port
-  const el = document.querySelector(`[data-port-id="${portId}"]`);
-  if (el) el.classList.add('selected-port');
-
-  // Cable SVG: enable pointer events
-  const svg = document.getElementById('cable-svg');
-  if (svg) svg.classList.add('drawing-mode');
-
-  document.getElementById('cable-mode-bar').classList.add('active');
-  renderCables();
-}
-
-function completeCableDraw(toPortId) {
-  const { fromPortId } = state.drawingCable;
-
-  // Check duplicate
-  const exists = state.cables.some(c =>
-    (c.from === fromPortId && c.to === toPortId) ||
-    (c.from === toPortId && c.to === fromPortId)
-  );
-
-  cancelCableDraw();
-
-  if (exists) return;
-
-  const fromPort = portMap[fromPortId];
-  const color = fromPort ? (PORT_COLORS[fromPort.type] || '#00d4ff') : '#00d4ff';
-
-  const newCable = {
-    id: `C${String(Date.now()).slice(-6)}`,
-    from: fromPortId,
-    to: toPortId,
-    label: `${fromPortId}→${toPortId}`,
-    color,
-  };
-  state.cables.push(newCable);
-
-  flash('#00d4ff');
-  updateStats();
-  renderCables();
-  updatePortConnectedState();
-  renderSidebar();
-}
-
-function cancelCableDraw() {
-  if (!state.drawingCable) return;
-  const { fromPortId } = state.drawingCable;
-  const el = document.querySelector(`[data-port-id="${fromPortId}"]`);
-  if (el) el.classList.remove('selected-port');
-
-  state.drawingCable = null;
-  const svg = document.getElementById('cable-svg');
-  if (svg) svg.classList.remove('drawing-mode');
-  document.getElementById('cable-mode-bar').classList.remove('active');
-  renderCables();
-}
-
-function updateCablePreview() {
-  if (!state.drawingCable) return;
-  state.drawingCable.mouseX = state.mouseX;
-  state.drawingCable.mouseY = state.mouseY;
-  renderCables();
-}
-
-function selectCable(cableId) {
-  state.selectedCableId = cableId;
-  renderCables();
-  renderSidebar();
-
-  // Show cable info
-  const cable = state.cables.find(c => c.id === cableId);
-  if (!cable) return;
-  flash();
-}
-
-function deleteCable(cableId) {
-  state.cables = state.cables.filter(c => c.id !== cableId);
-  if (state.selectedCableId === cableId) state.selectedCableId = null;
-  flash('#ff3355');
-  updateStats();
-  renderCables();
-  updatePortConnectedState();
-  renderSidebar();
-}
-
-function updatePortConnectedState() {
-  // Update all port dots
-  const rack = RACKS.find(r => r.id === state.activeRackId);
-  if (!rack) return;
-  for (const dev of rack.devices) {
-    for (const port of dev.ports) {
-      const el = document.querySelector(`[data-port-id="${port.id}"]`);
-      if (!el) continue;
-      const isConnected = state.cables.some(c => c.from === port.id || c.to === port.id);
-      if (isConnected) {
-        el.classList.add('connected');
-        const color = PORT_COLORS[port.type] || '#888';
-        el.style.boxShadow = `0 0 5px ${color}, 0 0 10px ${color}66`;
-      } else {
-        el.classList.remove('connected');
-        el.style.boxShadow = port.status === 'up' ? `0 0 3px ${PORT_COLORS[port.type] || '#888'}88` : 'none';
-      }
-    }
-  }
-}
-
-// ═══════════════════════════════════════════════════════
-//  SIDEBAR
-// ═══════════════════════════════════════════════════════
-function renderSidebar() {
-  const panel = document.getElementById('sidebar-panel');
-  panel.innerHTML = '';
-
-  const rack = RACKS.find(r => r.id === state.activeRackId);
-  if (!rack) return;
-
-  // Selected cable info
-  if (state.selectedCableId) {
-    const cable = state.cables.find(c => c.id === state.selectedCableId);
-    if (cable) {
-      const sec = document.createElement('div');
-      sec.className = 'sidebar-section';
-      const fromPort = portMap[cable.from];
-      const toPort = portMap[cable.to];
-      const fromDev = portDeviceMap[cable.from];
-      const toDev = portDeviceMap[cable.to];
-      const color = cable.color || '#00d4ff';
-      sec.innerHTML = `
-        <div class="sidebar-section-title">Выбранный кабель</div>
-        <div class="info-row"><div class="info-label">ID:</div><div class="info-value">${cable.id}</div></div>
-        <div class="info-row"><div class="info-label">Метка:</div><div class="info-value">${cable.label}</div></div>
-        <div class="info-row"><div class="info-label">От:</div><div class="info-value" style="color:${color}">${fromDev ? fromDev.name : '?'} / ${fromPort ? fromPort.name : cable.from}</div></div>
-        <div class="info-row"><div class="info-label">До:</div><div class="info-value" style="color:${color}">${toDev ? toDev.name : '?'} / ${toPort ? toPort.name : cable.to}</div></div>
-        <div style="margin-top:8px">
-          <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
-            <div style="width:10px;height:10px;border-radius:50%;background:${color};box-shadow:0 0 6px ${color}"></div>
-            <span style="font-size:9px;color:var(--text-dim)">${PORT_TYPE_LABEL[fromPort?.type] || fromPort?.type || 'кабель'}</span>
-          </div>
-          <button onclick="deleteCable('${cable.id}')" style="font-family:'Share Tech Mono';font-size:9px;letter-spacing:1px;padding:4px 10px;background:rgba(255,51,85,0.1);border:1px solid rgba(255,51,85,0.4);color:#ff3355;cursor:pointer;border-radius:2px;width:100%;transition:all 0.15s ease" onmouseover="this.style.background='rgba(255,51,85,0.25)'" onmouseout="this.style.background='rgba(255,51,85,0.1)'">× УДАЛИТЬ КАБЕЛЬ</button>
-        </div>
-      `;
-      panel.appendChild(sec);
-    }
-  }
-
-  // Cable list
-  const rackCables = state.cables.filter(cable => {
-    const fd = portDeviceMap[cable.from];
-    const td = portDeviceMap[cable.to];
-    return (fd && rack.devices.includes(fd)) || (td && rack.devices.includes(td));
-  });
-
-  const cableSec = document.createElement('div');
-  cableSec.className = 'sidebar-section';
-  cableSec.innerHTML = `<div class="sidebar-section-title">Кабели стойки (${rackCables.length})</div>`;
-
-  if (rackCables.length === 0) {
-    cableSec.innerHTML += `<div class="no-cables">Нет кабелей. Кликните на порт чтобы подключить.</div>`;
+let currentMode='iso';
+const walkState={fwd:false,back:false,left:false,right:false,locked:false};
+const walkEuler=new THREE.Euler(0,0,0,'YXZ');
+
+const MODES={
+  iso:  {pos:[0,4.5,7.5],  tgt:[0,1.2,0],  fov:58, bloomStr:1.0,bloomThr:0.82,fog:0.07},
+  fly:  {pos:[0,9,0.5],    tgt:[0,1,0],    fov:65, bloomStr:1.4,bloomThr:0.72,fog:0.05},
+  walk: {pos:[0,1.72,3.8], tgt:[0,1.72,0], fov:82, bloomStr:2.0,bloomThr:0.58,fog:0.10},
+};
+
+window.setMode=function(mode){
+  if(mode===currentMode)return;
+  const prev=currentMode;
+  currentMode=mode;
+
+  document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('m-'+mode).classList.add('active');
+
+  const P=MODES[mode];
+
+  gsap.to(camera.position,{x:P.pos[0],y:P.pos[1],z:P.pos[2],duration:1.8,ease:'power3.inOut'});
+  gsap.to(controls.target,{x:P.tgt[0],y:P.tgt[1],z:P.tgt[2],duration:1.8,ease:'power3.inOut',onUpdate:()=>controls.update()});
+  gsap.to(camera,{fov:P.fov,duration:1.5,ease:'power2.inOut',onUpdate:()=>camera.updateProjectionMatrix()});
+  gsap.to(bloom,{strength:P.bloomStr,threshold:P.bloomThr,duration:1.5,ease:'power2.inOut'});
+  gsap.to(scene.fog,{density:P.fog,duration:1.5});
+
+  const cross=document.getElementById('crosshair');
+  const hint=document.getElementById('hint');
+
+  if(mode==='walk'){
+    cross.style.display='block';
+    hint.innerHTML='W/A/S/D — движение<br>Мышь — обзор<br>Клик — захват мыши<br>ESC — выход';
+    controls.enabled=false;
+    enableWalk();
   } else {
-    for (const cable of rackCables) {
-      const fromPort = portMap[cable.from];
-      const toPort = portMap[cable.to];
-      const fromDev = portDeviceMap[cable.from];
-      const toDev = portDeviceMap[cable.to];
-      const color = cable.color || (fromPort ? PORT_COLORS[fromPort.type] : '#00d4ff') || '#00d4ff';
-
-      const item = document.createElement('div');
-      item.className = 'cable-item' + (cable.id === state.selectedCableId ? ' selected' : '');
-
-      item.innerHTML = `
-        <div class="cable-dot" style="background:${color};color:${color}"></div>
-        <div class="cable-info">
-          <div class="cable-label">${cable.label}</div>
-          <div>${fromDev ? fromDev.name : '?'}.${fromPort ? fromPort.name : cable.from} → ${toDev ? toDev.name : '?'}.${toPort ? toPort.name : cable.to}</div>
-        </div>
-        <div class="cable-del" title="Удалить" onclick="event.stopPropagation();deleteCable('${cable.id}')">×</div>
-      `;
-
-      item.addEventListener('click', () => selectCable(cable.id));
-      cableSec.appendChild(item);
-    }
+    cross.style.display='none';
+    controls.enabled=true;
+    if(prev==='walk') disableWalk();
+    if(mode==='iso') hint.innerHTML='ЛКМ — выбрать устройство<br>Колесо — масштаб<br>Drag — вращение';
+    if(mode==='fly') hint.innerHTML='Автоматический облёт<br>Drag — вращение<br>Колесо — масштаб';
   }
-  panel.appendChild(cableSec);
+};
 
-  // Device list
-  const devSec = document.createElement('div');
-  devSec.className = 'sidebar-section';
-  devSec.innerHTML = `<div class="sidebar-section-title">Устройства (${rack.devices.length})</div>`;
+// Walk controls
+function enableWalk(){
+  document.addEventListener('keydown',onKD);
+  document.addEventListener('keyup',onKU);
+  renderer.domElement.addEventListener('click',reqLock);
+  document.addEventListener('mousemove',onMM);
+  document.addEventListener('pointerlockchange',onPLC);
+}
+function disableWalk(){
+  document.removeEventListener('keydown',onKD);
+  document.removeEventListener('keyup',onKU);
+  renderer.domElement.removeEventListener('click',reqLock);
+  document.removeEventListener('mousemove',onMM);
+  document.removeEventListener('pointerlockchange',onPLC);
+  if(document.pointerLockElement) document.exitPointerLock();
+  walkState.locked=false;
+  Object.assign(walkState,{fwd:false,back:false,left:false,right:false});
+}
+function reqLock(){if(currentMode==='walk') renderer.domElement.requestPointerLock();}
+function onPLC(){walkState.locked=document.pointerLockElement===renderer.domElement;}
+function onKD(e){
+  if(e.key==='w'||e.key==='W'||e.key==='ArrowUp')   walkState.fwd=true;
+  if(e.key==='s'||e.key==='S'||e.key==='ArrowDown')  walkState.back=true;
+  if(e.key==='a'||e.key==='A'||e.key==='ArrowLeft')  walkState.left=true;
+  if(e.key==='d'||e.key==='D'||e.key==='ArrowRight') walkState.right=true;
+  if(e.key==='Escape'&&currentMode==='walk') setMode('iso');
+}
+function onKU(e){
+  if(e.key==='w'||e.key==='W'||e.key==='ArrowUp')   walkState.fwd=false;
+  if(e.key==='s'||e.key==='S'||e.key==='ArrowDown')  walkState.back=false;
+  if(e.key==='a'||e.key==='A'||e.key==='ArrowLeft')  walkState.left=false;
+  if(e.key==='d'||e.key==='D'||e.key==='ArrowRight') walkState.right=false;
+}
+function onMM(e){
+  if(!walkState.locked)return;
+  walkEuler.setFromQuaternion(camera.quaternion);
+  walkEuler.y -= e.movementX*0.0018;
+  walkEuler.x -= e.movementY*0.0018;
+  walkEuler.x=Math.max(-Math.PI*0.35,Math.min(Math.PI*0.35,walkEuler.x));
+  camera.quaternion.setFromEuler(walkEuler);
+}
 
-  for (const dev of rack.devices) {
-    const color = TYPE_COLORS[dev.type] || '#404060';
-    const statusColor = dev.status === 'up' ? '#00ff88' : dev.status === 'warn' ? '#ff8c00' : '#ff3355';
-    const portsUp = dev.ports.filter(p => p.status === 'up').length;
-
-    const row = document.createElement('div');
-    row.style.cssText = 'padding:4px 0;border-bottom:1px solid rgba(26,37,64,0.3);cursor:pointer;transition:all 0.15s';
-    row.innerHTML = `
-      <div style="display:flex;align-items:center;gap:6px">
-        <div style="width:3px;height:20px;background:${color};border-radius:1px;box-shadow:0 0 4px ${color}88;flex-shrink:0"></div>
-        <div style="flex:1;min-width:0">
-          <div style="font-family:'Orbitron',sans-serif;font-size:9px;font-weight:700;color:var(--text);letter-spacing:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${dev.name}</div>
-          <div style="font-size:8px;color:var(--text-dim)">U${dev.u} • ${dev.model || dev.type}</div>
-        </div>
-        <div style="font-size:9px;color:${statusColor};text-shadow:0 0 6px ${statusColor}">${dev.status.toUpperCase()}</div>
-      </div>
-      <div style="margin-top:2px;padding-left:9px;font-size:8px;color:var(--text-dim)">Портов: ${portsUp}/${dev.ports.length} up</div>
-    `;
-    devSec.appendChild(row);
-  }
-  panel.appendChild(devSec);
+const _wDir=new THREE.Vector3(), _wRight=new THREE.Vector3();
+function updateWalk(dt){
+  if(currentMode!=='walk')return;
+  const sp=2.6*dt;
+  if(!(walkState.fwd||walkState.back||walkState.left||walkState.right))return;
+  camera.getWorldDirection(_wDir); _wDir.y=0; _wDir.normalize();
+  _wRight.crossVectors(_wDir,new THREE.Vector3(0,1,0)).normalize();
+  if(walkState.fwd)  camera.position.addScaledVector(_wDir,sp);
+  if(walkState.back) camera.position.addScaledVector(_wDir,-sp);
+  if(walkState.left) camera.position.addScaledVector(_wRight,-sp);
+  if(walkState.right)camera.position.addScaledVector(_wRight,sp);
+  camera.position.x=Math.max(-6,Math.min(6,camera.position.x));
+  camera.position.z=Math.max(-4,Math.min(4,camera.position.z));
+  camera.position.y=1.72;
 }
 
 // ═══════════════════════════════════════════════════════
-//  TOOLTIP
+//  INTERACTION
 // ═══════════════════════════════════════════════════════
-function showPortTooltip(portId, event) {
-  if (state.drawingCable) return;
-  const port = portMap[portId];
-  if (!port) return;
-  const tt = document.getElementById('tooltip');
-  document.getElementById('tt-name').textContent = port.name;
-  document.getElementById('tt-type').textContent = PORT_TYPE_LABEL[port.type] || port.type;
-  const statusText = port.status === 'up' ? '▲ UP' : '▼ DOWN';
-  const statusEl = document.getElementById('tt-status');
-  statusEl.textContent = statusText;
-  statusEl.style.color = port.status === 'up' ? '#00ff88' : '#ff3355';
-  const speedRow = document.getElementById('tt-speed-row');
-  if (port.speed) {
-    speedRow.style.display = 'block';
-    document.getElementById('tt-speed').textContent = port.speed;
-  } else {
-    speedRow.style.display = 'none';
-  }
-  tt.classList.add('visible');
-  moveTooltip(event);
-}
+const ray=new THREE.Raycaster();
+const mouse=new THREE.Vector2();
 
-function moveTooltip(event) {
-  const tt = document.getElementById('tooltip');
-  let x = event.clientX + 14;
-  let y = event.clientY - 10;
-  if (x + 200 > window.innerWidth) x = event.clientX - 200;
-  if (y + 80 > window.innerHeight) y = event.clientY - 80;
-  tt.style.left = x + 'px';
-  tt.style.top = y + 'px';
-}
-
-function hidePortTooltip() {
-  document.getElementById('tooltip').classList.remove('visible');
-}
-
-document.addEventListener('mousemove', e => {
-  if (document.getElementById('tooltip').classList.contains('visible')) {
-    moveTooltip(e);
-  }
-});
-
-// ═══════════════════════════════════════════════════════
-//  KEYBOARD
-// ═══════════════════════════════════════════════════════
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') {
-    if (state.drawingCable) {
-      cancelCableDraw();
-    } else if (state.selectedCableId) {
-      state.selectedCableId = null;
-      renderCables();
-      renderSidebar();
+renderer.domElement.addEventListener('click',e=>{
+  if(currentMode==='walk'&&!walkState.locked) return;
+  if(currentMode==='walk') return;
+  mouse.x=(e.clientX/window.innerWidth)*2-1;
+  mouse.y=-(e.clientY/window.innerHeight)*2+1;
+  ray.setFromCamera(mouse,camera);
+  const hits=ray.intersectObjects(scene.children,true);
+  for(const h of hits){
+    let ud=h.object.userData;
+    // Walk up parent chain to find device data
+    let obj=h.object;
+    while(obj && !ud.device){ obj=obj.parent; ud=obj?.userData||{}; }
+    if(ud.device){
+      showInfo(ud.device);
+      focusRack(RACKS.find(r=>r.devices.find(d=>d.id===ud.device.id))?.id);
+      break;
     }
   }
 });
 
+function showInfo(dev){
+  document.getElementById('ip-name').textContent=dev.name;
+  document.getElementById('ip-brand').textContent=dev.brand||'—';
+  document.getElementById('ip-model').textContent=dev.model||'—';
+  document.getElementById('ip-type').textContent=dev.type;
+  const st=document.getElementById('ip-status');
+  st.textContent=dev.status.toUpperCase();
+  st.className=dev.status==='up'?'ip-ok':dev.status==='warn'?'ip-warn':'ip-down';
+  const pg=document.getElementById('ip-ports');
+  pg.innerHTML='';
+  if(dev.ports) for(const p of dev.ports){
+    const el=document.createElement('div');
+    el.className='ip-port';
+    const c=p.status==='up'?(PORT_COLORS[p.type]||0x4a90e2):0x0c0e14;
+    el.style.background='#'+c.toString(16).padStart(6,'0');
+    el.title=`${p.name} · ${p.type} · ${p.status}${p.speed?' · '+p.speed:''}`;
+    pg.appendChild(el);
+  }
+  document.getElementById('info-panel').classList.add('visible');
+}
+window.closeInfo=()=>document.getElementById('info-panel').classList.remove('visible');
+
 // ═══════════════════════════════════════════════════════
-//  SIDEBAR BACK BUTTON
+//  ANIMATION
 // ═══════════════════════════════════════════════════════
-document.getElementById('sidebar-back').addEventListener('click', () => {
-  glitchTransition(() => showOverview());
+let last=0, rgbH=0, flyAngle=0;
+
+function animate(t){
+  requestAnimationFrame(animate);
+  const dt=Math.min((t-last)/1000,0.05); last=t;
+
+  if(currentMode!=='walk') controls.update();
+  updateWalk(dt);
+
+  // Fly mode auto-orbit
+  if(currentMode==='fly'){
+    flyAngle+=dt*0.12;
+    const r=8.5;
+    camera.position.x=Math.sin(flyAngle)*r*0.45;
+    camera.position.z=Math.cos(flyAngle)*r*0.3+1.2;
+    camera.position.y=7.5+Math.sin(t*0.0003)*0.8;
+    camera.lookAt(0,1.5,0);
+  }
+
+  // Data flow particles
+  for(const fp of flowParticles){
+    fp.offset=(fp.offset+fp.speed*dt)%1;
+    const pos=fp.pts.geometry.attributes.position;
+    for(let i=0;i<fp.N;i++){
+      const t2=(fp.offset+i/fp.N)%1;
+      const p=fp.curve.getPoint(t2);
+      pos.setXYZ(i,p.x,p.y,p.z);
+    }
+    pos.needsUpdate=true;
+  }
+
+  // RGB fans
+  rgbH=(rgbH+dt*110)%360;
+  scene.traverse(o=>{
+    if(!o.userData.isRGB||!o.material)return;
+    const hue=((rgbH+o.userData.fanIndex*120)%360)/360;
+    o.material.emissive.setHSL(hue,1,0.5);
+    if(o.userData.isBlade) o.rotation.z+=dt*(5+o.userData.fanIndex*0.8);
+  });
+
+  // LED pulse
+  const pulse=Math.sin(t*0.0022)*0.25+0.75;
+  scene.traverse(o=>{
+    if(o.material?.emissiveIntensity>1.8&&!o.userData.isRGB){
+      if(!o.userData._baseEI) o.userData._baseEI=o.material.emissiveIntensity;
+      o.material.emissiveIntensity=o.userData._baseEI*pulse;
+    }
+  });
+
+  composer.render();
+  labelRenderer.render(scene,camera);
+}
+
+// ═══════════════════════════════════════════════════════
+//  RESIZE
+// ═══════════════════════════════════════════════════════
+window.addEventListener('resize',()=>{
+  camera.aspect=window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth,window.innerHeight);
+  composer.setSize(window.innerWidth,window.innerHeight);
+  bloom.setSize(window.innerWidth,window.innerHeight);
+  labelRenderer.setSize(window.innerWidth,window.innerHeight);
 });
 
 // ═══════════════════════════════════════════════════════
 //  INIT
 // ═══════════════════════════════════════════════════════
-function init() {
-  buildPortMap();
+const ldBar=document.getElementById('ld-bar');
+const ldStatus=document.getElementById('ld-status');
+const steps=['Initializing renderer...','Building room geometry...','Loading rack models...','Building equipment...','Connecting cables...','Starting data streams...'];
+let step=0;
+const ldInterval=setInterval(()=>{
+  step=Math.min(step+1,steps.length-1);
+  ldStatus.textContent=steps[step];
+  ldBar.style.width=(step/(steps.length-1)*90+5)+'%';
+},200);
 
-  // Load initial cables
-  for (const c of INITIAL_CABLES) {
-    const fromPort = portMap[c.from];
-    const color = fromPort ? (PORT_COLORS[fromPort.type] || '#00d4ff') : '#00d4ff';
-    state.cables.push({ ...c, color });
-  }
-
-  initParticles();
+setTimeout(()=>{
+  clearInterval(ldInterval);
+  buildScene();
   startClock();
-  updateStats();
-  renderOverview();
-}
-
-init();
+  ldBar.style.width='100%';
+  setTimeout(()=>{
+    document.getElementById('loading').classList.add('done');
+    setTimeout(()=>document.getElementById('loading')?.remove(),900);
+  },300);
+  requestAnimationFrame(animate);
+},1400);
 </script>
 </body>
 </html>
