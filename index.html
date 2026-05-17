@@ -247,6 +247,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 // ═══════════════════════════════════════════════════════
 //  DATA — Real equipment from Doc2.docx photos
@@ -352,8 +353,12 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.1;
+renderer.toneMappingExposure = 1.15;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+// PBR environment — the key to a polished, premium look
+const pmrem = new THREE.PMREMGenerator(renderer);
+pmrem.compileEquirectangularShader();
 
 const labelRenderer = new CSS2DRenderer();
 labelRenderer.setSize(window.innerWidth, window.innerHeight);
@@ -361,38 +366,39 @@ labelRenderer.domElement.style.cssText = 'position:fixed;top:0;left:0;pointer-ev
 document.body.appendChild(labelRenderer.domElement);
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x020408);
-scene.fog = new THREE.FogExp2(0x020408, 0.07);
+scene.background = new THREE.Color(0x12151c);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.fog = new THREE.FogExp2(0x12151c, 0.028);
 
-const camera = new THREE.PerspectiveCamera(58, window.innerWidth / window.innerHeight, 0.01, 80);
-camera.position.set(0, 4.5, 7.5);
+const camera = new THREE.PerspectiveCamera(46, window.innerWidth / window.innerHeight, 0.01, 80);
+camera.position.set(4.5, 3.4, 6.5);
 
 // Post-processing
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
-const bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.0, 0.45, 0.82);
+const bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.35, 0.5, 0.9);
 composer.addPass(bloom);
 composer.addPass(new OutputPass());
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.055;
-controls.target.set(0, 1.2, 0);
+controls.target.set(0, 1.0, 0);
 controls.minDistance = 1.5;
-controls.maxDistance = 18;
-controls.maxPolarAngle = Math.PI * 0.82;
+controls.maxDistance = 16;
+controls.maxPolarAngle = Math.PI * 0.49;
 
 // ═══════════════════════════════════════════════════════
 //  MATERIALS
 // ═══════════════════════════════════════════════════════
 const M = {
-  floor: new THREE.MeshStandardMaterial({color:0x080c14,roughness:0.12,metalness:0.05}),
-  wall:  new THREE.MeshStandardMaterial({color:0x0c1018,roughness:0.85}),
-  ceil:  new THREE.MeshStandardMaterial({color:0x080a10,roughness:0.9}),
-  rackBody: new THREE.MeshStandardMaterial({color:0x0a0c10,roughness:0.25,metalness:0.92}),
-  rackInner:new THREE.MeshStandardMaterial({color:0x060809,roughness:0.55,metalness:0.3}),
-  rail:  new THREE.MeshStandardMaterial({color:0x222840,roughness:0.15,metalness:0.98}),
-  floor_emit: new THREE.MeshStandardMaterial({color:0x00d4ff,emissive:new THREE.Color(0x00d4ff),emissiveIntensity:0.06,transparent:true,opacity:0.12}),
+  floor: new THREE.MeshStandardMaterial({color:0x1c2029,roughness:0.16,metalness:0.65}),
+  wall:  new THREE.MeshStandardMaterial({color:0x252a34,roughness:0.92,metalness:0.0}),
+  ceil:  new THREE.MeshStandardMaterial({color:0x1e222b,roughness:0.95,metalness:0.0}),
+  rackBody: new THREE.MeshStandardMaterial({color:0x44495a,roughness:0.38,metalness:0.88}),
+  rackInner:new THREE.MeshStandardMaterial({color:0x16191f,roughness:0.6,metalness:0.4}),
+  rail:  new THREE.MeshStandardMaterial({color:0x6a7185,roughness:0.22,metalness:0.97}),
+  floor_emit: new THREE.MeshStandardMaterial({color:0x00d4ff,emissive:new THREE.Color(0x00d4ff),emissiveIntensity:0.4,transparent:true,opacity:0.18}),
 };
 
 // ═══════════════════════════════════════════════════════
@@ -494,8 +500,12 @@ function buildRackFrame(rackData) {
 
   // Bottom + top panels
   const panelGeo = new THREE.BoxGeometry(RW,0.025,RD);
-  g.add(Object.assign(new THREE.Mesh(panelGeo,M.rackBody),{position:new THREE.Vector3(0,0.012,0)}));
-  g.add(Object.assign(new THREE.Mesh(panelGeo,M.rackBody),{position:new THREE.Vector3(0,RH+0.012,0)}));
+  const botPanel = new THREE.Mesh(panelGeo,M.rackBody);
+  botPanel.position.set(0,0.012,0);
+  g.add(botPanel);
+  const topPanel = new THREE.Mesh(panelGeo,M.rackBody);
+  topPanel.position.set(0,RH+0.012,0);
+  g.add(topPanel);
 
   // Perforated back panel (visual)
   const backPanelMat = new THREE.MeshStandardMaterial({color:0x080a0e,roughness:0.7,metalness:0.5});
@@ -676,33 +686,22 @@ function makeTube(pts, color, r=0.0028){
 
 function addCableBundles(rackGroup, rackData) {
   const RD=1.02, RH=42*U_H+0.12;
-  // Front hanging cables (like in photos - chaotic but realistic)
-  const colors=[0x4a90e2,0x4a90e2,0x3a80d0,0x00d4ff,0x00d4ff,0x00ff88,0x1a1a1a,0xff8c00];
-  for(let i=0;i<16;i++){
+  // Tidy vertical cable management on the right side of the rack
+  const colors=[0x3a78c8,0x00b4e0,0x00cc7a,0x3a78c8,0xe08030];
+  const railX = 0.235;
+  for(let i=0;i<5;i++){
     const c=colors[i%colors.length];
-    const sx=(Math.random()-0.5)*0.45;
-    const sy=RH*0.15+Math.random()*RH*0.7;
-    const sag=0.05+Math.random()*0.15;
+    const xo = railX + i*0.006;
+    const topY = RH*0.85 - i*0.04;
+    const botY = RH*0.18 + i*0.03;
     const pts=[
-      new THREE.Vector3(sx, sy, RD/2-0.14),
-      new THREE.Vector3(sx+(Math.random()-0.5)*0.08, sy-0.08, RD/2-0.02),
-      new THREE.Vector3(sx+(Math.random()-0.5)*0.12, sy-0.22-sag, RD/2+0.08),
-      new THREE.Vector3(sx+(Math.random()-0.5)*0.06, sy-0.42-sag*2, RD/2+0.05),
+      new THREE.Vector3(xo*0.4, topY, RD/2-0.12),
+      new THREE.Vector3(xo,     topY-0.05, RD/2-0.02),
+      new THREE.Vector3(xo,     (topY+botY)/2, RD/2),
+      new THREE.Vector3(xo,     botY+0.05, RD/2-0.02),
+      new THREE.Vector3(xo*0.4, botY, RD/2-0.12),
     ];
-    const cable=makeTube(pts,c,0.0018+Math.random()*0.0018);
-    rackGroup.add(cable);
-  }
-  // Floor cables (like image15 - chaos on floor)
-  for(let i=0;i<8;i++){
-    const c=i<6?0x4a90e2:0x0a0a0a;
-    const ox=(Math.random()-0.5)*0.5;
-    const pts=[
-      new THREE.Vector3(ox, 0.12, RD/2-0.08),
-      new THREE.Vector3(ox+0.1, 0.06, RD/2+0.2),
-      new THREE.Vector3(ox+0.2+Math.random()*0.3, 0.02, RD/2+0.35+Math.random()*0.2),
-      new THREE.Vector3(ox+0.3+Math.random()*0.5, 0.01, RD/2+0.5+Math.random()*0.3),
-    ];
-    rackGroup.add(makeTube(pts,c,0.003+Math.random()*0.002));
+    rackGroup.add(makeTube(pts,c,0.0022));
   }
 }
 
@@ -747,18 +746,32 @@ const rackGroups = new Map();
 const allDevices = [];
 
 function buildScene(){
-  // Lights
-  scene.add(new THREE.AmbientLight(0x0a1428,12));
-  const dir = new THREE.DirectionalLight(0x3050a0,1.8);
-  dir.position.set(2,6,4); dir.castShadow=true;
-  dir.shadow.mapSize.set(2048,2048);
-  dir.shadow.camera.left=-8;dir.shadow.camera.right=8;
-  dir.shadow.camera.top=8;dir.shadow.camera.bottom=-8;
-  scene.add(dir);
-  // Colored fill lights
-  const pl1=new THREE.PointLight(0x0060ff,2.5,10); pl1.position.set(-6,2.5,2); scene.add(pl1);
-  const pl2=new THREE.PointLight(0x00ff88,1.8,10); pl2.position.set(6,2.5,2);  scene.add(pl2);
-  const pl3=new THREE.PointLight(0x4030ff,1.2,12); pl3.position.set(0,3,-1.5); scene.add(pl3);
+  // ── STUDIO LIGHTING (Lusion/Aterlab style) ──
+  // Soft ambient gradient
+  scene.add(new THREE.HemisphereLight(0xc8d4e8, 0x2a3038, 1.4));
+  scene.add(new THREE.AmbientLight(0xffffff, 0.35));
+
+  // Key light — main soft directional with shadows
+  const key = new THREE.DirectionalLight(0xfff2e0, 2.6);
+  key.position.set(5, 9, 6);
+  key.castShadow = true;
+  key.shadow.mapSize.set(2048, 2048);
+  key.shadow.camera.left=-9; key.shadow.camera.right=9;
+  key.shadow.camera.top=9; key.shadow.camera.bottom=-9;
+  key.shadow.camera.near=0.5; key.shadow.camera.far=30;
+  key.shadow.bias = -0.0004;
+  key.shadow.normalBias = 0.02;
+  scene.add(key);
+
+  // Fill light — cool, softens shadows
+  const fill = new THREE.DirectionalLight(0x88a8ff, 0.8);
+  fill.position.set(-6, 4, -3);
+  scene.add(fill);
+
+  // Rim / accent lights — cinematic edge glow
+  const rim1 = new THREE.PointLight(0x00d4ff, 1.4, 12); rim1.position.set(-5, 2.6, 3.5); scene.add(rim1);
+  const rim2 = new THREE.PointLight(0x00ff9c, 1.0, 12); rim2.position.set(5, 2.6, 3.5);  scene.add(rim2);
+  const back = new THREE.PointLight(0x6080ff, 0.8, 14);  back.position.set(0, 3, -3);     scene.add(back);
 
   scene.add(buildRoom());
 
@@ -864,9 +877,9 @@ const walkState={fwd:false,back:false,left:false,right:false,locked:false};
 const walkEuler=new THREE.Euler(0,0,0,'YXZ');
 
 const MODES={
-  iso:  {pos:[0,4.5,7.5],  tgt:[0,1.2,0],  fov:58, bloomStr:1.0,bloomThr:0.82,fog:0.07},
-  fly:  {pos:[0,9,0.5],    tgt:[0,1,0],    fov:65, bloomStr:1.4,bloomThr:0.72,fog:0.05},
-  walk: {pos:[0,1.72,3.8], tgt:[0,1.72,0], fov:82, bloomStr:2.0,bloomThr:0.58,fog:0.10},
+  iso:  {pos:[4.5,3.4,6.5], tgt:[0,1.0,0],  fov:46, bloomStr:0.32,bloomThr:0.92,fog:0.026},
+  fly:  {pos:[0,8,5],       tgt:[0,1,0],    fov:55, bloomStr:0.45,bloomThr:0.86,fog:0.022},
+  walk: {pos:[0,1.65,3.6],  tgt:[0,1.6,0],  fov:72, bloomStr:0.7, bloomThr:0.75,fog:0.04},
 };
 
 window.setMode=function(mode){
@@ -1091,14 +1104,20 @@ const ldInterval=setInterval(()=>{
 
 setTimeout(()=>{
   clearInterval(ldInterval);
-  buildScene();
-  startClock();
-  ldBar.style.width='100%';
-  setTimeout(()=>{
-    document.getElementById('loading').classList.add('done');
-    setTimeout(()=>document.getElementById('loading')?.remove(),900);
-  },300);
-  requestAnimationFrame(animate);
+  try {
+    buildScene();
+    startClock();
+    ldBar.style.width='100%';
+    setTimeout(()=>{
+      document.getElementById('loading').classList.add('done');
+      setTimeout(()=>document.getElementById('loading')?.remove(),900);
+    },300);
+    requestAnimationFrame(animate);
+  } catch(err) {
+    console.error('Scene build failed:', err);
+    ldStatus.style.color='#ff3355';
+    ldStatus.textContent='Ошибка: '+(err&&err.message?err.message:err);
+  }
 },1400);
 </script>
 </body>
