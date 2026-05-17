@@ -386,7 +386,7 @@ scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 scene.fog = new THREE.FogExp2(0x12151c, 0.028);
 
 const camera = new THREE.PerspectiveCamera(46, window.innerWidth / window.innerHeight, 0.01, 80);
-camera.position.set(4.5, 3.4, 6.5);
+camera.position.set(3.8, 2.3, 5.0);
 
 // Post-processing
 const composer = new EffectComposer(renderer);
@@ -398,7 +398,7 @@ composer.addPass(new OutputPass());
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.055;
-controls.target.set(0, 1.0, 0);
+controls.target.set(0, 0.55, 0);
 controls.minDistance = 1.5;
 controls.maxDistance = 16;
 controls.maxPolarAngle = Math.PI * 0.49;
@@ -482,14 +482,16 @@ function buildRoom() {
     g.add(sl);
   }
 
-  // Cable tray above racks (from photo: runs over racks)
-  const trayMat = new THREE.MeshStandardMaterial({color:0x141820,roughness:0.3,metalness:0.85});
-  const tray = new THREE.Mesh(new THREE.BoxGeometry(9,0.04,0.35),trayMat);
-  tray.position.set(0,2.35,-0.6); g.add(tray);
-  // Tray sides
-  for(const xs of[-4.5,4.5]){
-    const ts = new THREE.Mesh(new THREE.BoxGeometry(0.03,0.12,0.35),trayMat);
-    ts.position.set(xs,2.35,-0.6); g.add(ts);
+  // Slim overhead cable ladder above the racks (rails + rungs, not a slab)
+  const ladderMat = new THREE.MeshStandardMaterial({color:0x2a3140,roughness:0.35,metalness:0.85});
+  const LX = 6.2, LY = 2.18, LZ = -0.5;
+  for(const zr of [LZ-0.14, LZ+0.14]){
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(LX,0.025,0.02),ladderMat);
+    rail.position.set(0,LY,zr); g.add(rail);
+  }
+  for(let x=-LX/2; x<=LX/2; x+=0.22){
+    const rung = new THREE.Mesh(new THREE.BoxGeometry(0.014,0.014,0.3),ladderMat);
+    rung.position.set(x,LY,LZ); g.add(rung);
   }
 
   return g;
@@ -502,7 +504,7 @@ const U_H = 0.04445;
 
 function buildRackFrame(rackData) {
   const g = new THREE.Group();
-  const RW=0.62, RD=1.0, RH=42*U_H+0.14;
+  const RW=0.62, RD=1.0, RH=(rackData.rackU||42)*U_H+0.14;
   const post=0.03;
 
   // ── 4 corner posts (open frame, equipment stays visible) ──
@@ -583,6 +585,27 @@ function buildRackFrame(rackData) {
 function buildDevice(dev) {
   const g = new THREE.Group();
   const DW=0.555, DD=0.26, h=U_H*dev.h;
+
+  // ── Blanking panel (fills empty U, makes rack look fully populated) ──
+  if(dev.type==='blank'){
+    const pMat = new THREE.MeshStandardMaterial({color:0x161922,roughness:0.55,metalness:0.7});
+    const panel = new THREE.Mesh(new THREE.BoxGeometry(DW-0.01,h-0.004,0.012),pMat);
+    panel.position.z = DD/2+0.004; panel.castShadow=true;
+    g.add(panel);
+    // Two thumb-screw dots
+    const scMat = new THREE.MeshStandardMaterial({color:0x3a4252,roughness:0.3,metalness:0.95});
+    for(const sx of [-DW/2+0.02, DW/2-0.02]){
+      const sc = new THREE.Mesh(new THREE.CylinderGeometry(0.005,0.005,0.004,8),scMat);
+      sc.rotation.x=Math.PI/2; sc.position.set(sx,0,DD/2+0.011);
+      g.add(sc);
+    }
+    // Subtle vent slit
+    const vent = new THREE.Mesh(new THREE.BoxGeometry(DW*0.5,h*0.25,0.006),
+      new THREE.MeshStandardMaterial({color:0x0a0c12,roughness:0.9}));
+    vent.position.set(0,0,DD/2+0.009);
+    g.add(vent);
+    return g;
+  }
 
   // Chassis body
   const bodyColor = dev.color || 0x101218;
@@ -774,10 +797,10 @@ const flowParticles = [];
 
 function addNetworkFlows(){
   const flows=[
-    {from:[-2.5,2.3,-0.6],mid:[0,2.38,-0.6],to:[0,2.3,-0.6],     color:0x4a90e2,speed:0.18},
-    {from:[0,2.3,-0.6],   mid:[1.25,2.38,-0.6],to:[2.5,2.3,-0.6], color:0x00d4ff,speed:0.22},
-    {from:[-2.5,2.25,-0.6],mid:[0,2.32,-0.6],to:[2.5,2.25,-0.6],  color:0x00ff88,speed:0.15},
-    {from:[2.5,2.28,-0.6],mid:[0,2.35,-0.6],to:[-2.5,2.28,-0.6],  color:0xff8c00,speed:0.12},
+    {from:[-2.5,2.17,-0.5],mid:[-1.25,2.2,-0.5],to:[0,2.17,-0.5],  color:0x4a90e2,speed:0.18},
+    {from:[0,2.17,-0.5],   mid:[1.25,2.2,-0.5], to:[2.5,2.17,-0.5], color:0x00d4ff,speed:0.22},
+    {from:[-2.5,2.16,-0.5],mid:[0,2.19,-0.5],   to:[2.5,2.16,-0.5], color:0x00ff88,speed:0.15},
+    {from:[2.5,2.17,-0.5], mid:[0,2.2,-0.5],    to:[-2.5,2.17,-0.5],color:0xff8c00,speed:0.12},
   ];
 
   for(const f of flows){
@@ -842,15 +865,35 @@ function buildScene(){
     const [rx,,rz] = rack.pos;
     rg.position.set(rx,0,rz-0.5);
 
+    // Fit rack height to its equipment (full, dense, not 70% empty)
+    let topU = 0;
+    for(const d of rack.devices) topU = Math.max(topU, d.u + d.h - 1);
+    const rackU = topU + 1;            // 1U slack at top
+    rack.rackU = rackU;
+
     rg.add(buildRackFrame(rack));
 
-    const RH=42*U_H+0.14, RD=1.0;
+    const RH=rackU*U_H+0.14, RD=1.0;
+
+    // Mark occupied U slots
+    const occupied = new Set();
+    for(const d of rack.devices)
+      for(let u=d.u; u<d.u+d.h; u++) occupied.add(u);
+
     for(const dev of rack.devices){
       const dm = buildDevice(dev);
       const yPos = (dev.u-1)*U_H + dev.h*U_H/2 + 0.05;
       dm.position.set(0, yPos, 0.30);
       rg.add(dm);
       allDevices.push({mesh:dm, device:dev, rack});
+    }
+
+    // Fill empty U slots with blanking panels (real racks are full)
+    for(let u=1; u<=rackU; u++){
+      if(occupied.has(u)) continue;
+      const blank = buildDevice({type:'blank', h:1, u, status:'up', color:0x1a1d24, ports:[]});
+      blank.position.set(0, (u-1)*U_H + U_H/2 + 0.05, 0.30);
+      rg.add(blank);
     }
 
     addCableBundles(rg, rack);
@@ -903,8 +946,8 @@ function focusRack(rackId){
   if(!rack)return;
   const [rx,,rz]=rack.pos;
   if(currentMode==='iso'){
-    gsap.to(camera.position,{x:rx,y:3,z:rz+4.5,duration:1.4,ease:'power3.inOut'});
-    gsap.to(controls.target,{x:rx,y:1.2,z:rz,duration:1.4,ease:'power3.inOut',onUpdate:()=>controls.update()});
+    gsap.to(camera.position,{x:rx,y:1.5,z:rz+3.0,duration:1.4,ease:'power3.inOut'});
+    gsap.to(controls.target,{x:rx,y:0.5,z:rz,duration:1.4,ease:'power3.inOut',onUpdate:()=>controls.update()});
   }
 }
 
@@ -939,9 +982,9 @@ const walkState={fwd:false,back:false,left:false,right:false,locked:false};
 const walkEuler=new THREE.Euler(0,0,0,'YXZ');
 
 const MODES={
-  iso:  {pos:[4.5,3.4,6.5], tgt:[0,1.0,0],  fov:46, bloomStr:0.32,bloomThr:0.92,fog:0.026},
-  fly:  {pos:[0,8,5],       tgt:[0,1,0],    fov:55, bloomStr:0.45,bloomThr:0.86,fog:0.022},
-  walk: {pos:[0,1.65,3.6],  tgt:[0,1.6,0],  fov:72, bloomStr:0.7, bloomThr:0.75,fog:0.04},
+  iso:  {pos:[3.8,2.3,5.0], tgt:[0,0.55,0], fov:42, bloomStr:0.32,bloomThr:0.92,fog:0.026},
+  fly:  {pos:[0,5.5,4.5],   tgt:[0,0.5,0],  fov:52, bloomStr:0.45,bloomThr:0.86,fog:0.022},
+  walk: {pos:[0,1.2,3.0],   tgt:[0,0.6,0],  fov:72, bloomStr:0.7, bloomThr:0.75,fog:0.04},
 };
 
 window.setMode=function(mode){
@@ -1032,7 +1075,7 @@ function updateWalk(dt){
   if(walkState.right)camera.position.addScaledVector(_wRight,sp);
   camera.position.x=Math.max(-6,Math.min(6,camera.position.x));
   camera.position.z=Math.max(-4,Math.min(4,camera.position.z));
-  camera.position.y=1.72;
+  camera.position.y=1.2;
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1178,8 +1221,8 @@ setTimeout(()=>{
 
     // Cinematic intro fly-in (Lusion-style reveal)
     const iso = MODES.iso;
-    camera.position.set(0, 0.9, 11);
-    controls.target.set(0, 0.8, 0);
+    camera.position.set(0, 0.7, 8.5);
+    controls.target.set(0, 0.5, 0);
     controls.enabled = false;
     if (window.gsap) {
       gsap.timeline({ onComplete:()=>{ controls.enabled = true; } })
