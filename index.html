@@ -468,63 +468,76 @@ const U_H = 0.04445;
 
 function buildRackFrame(rackData) {
   const g = new THREE.Group();
-  const RW=0.6, RD=1.02, RH=42*U_H+0.12;
+  const RW=0.62, RD=1.0, RH=42*U_H+0.14;
+  const post=0.03;
 
-  // Main body
-  const body = new THREE.Mesh(new THREE.BoxGeometry(RW,RH,RD), M.rackBody);
-  body.position.y = RH/2;
-  body.castShadow=true; body.receiveShadow=true;
-  body.userData = {type:'rack',rackId:rackData.id};
-  g.add(body);
+  // ── 4 corner posts (open frame, equipment stays visible) ──
+  const postGeo = new THREE.BoxGeometry(post, RH, post);
+  for(const [px,pz] of [[-RW/2+post/2,RD/2-post/2],[RW/2-post/2,RD/2-post/2],
+                        [-RW/2+post/2,-RD/2+post/2],[RW/2-post/2,-RD/2+post/2]]){
+    const p = new THREE.Mesh(postGeo, M.rackBody);
+    p.position.set(px, RH/2, pz);
+    p.castShadow=true; p.receiveShadow=true;
+    g.add(p);
+  }
 
-  // Front panel recess
-  const front = new THREE.Mesh(new THREE.BoxGeometry(RW-0.045,RH-0.05,0.018), M.rackInner);
-  front.position.set(0,RH/2,RD/2-0.008);
-  g.add(front);
+  // ── Top + bottom frame plates ──
+  const plateGeo = new THREE.BoxGeometry(RW,0.03,RD);
+  const bot = new THREE.Mesh(plateGeo,M.rackBody);
+  bot.position.set(0,0.015,0); bot.receiveShadow=true; g.add(bot);
+  const top = new THREE.Mesh(plateGeo,M.rackBody);
+  top.position.set(0,RH+0.015,0); top.castShadow=true; g.add(top);
 
-  // Mounting rails
-  const railGeo = new THREE.BoxGeometry(0.022,RH-0.06,0.022);
-  for(const x of[-RW/2+0.038, RW/2-0.038]){
+  // ── Perforated dark back panel ──
+  const backMat = new THREE.MeshStandardMaterial({color:0x14171d,roughness:0.55,metalness:0.7});
+  const back = new THREE.Mesh(new THREE.BoxGeometry(RW-post*2,RH-0.06,0.012),backMat);
+  back.position.set(0,RH/2,-RD/2+post*0.7);
+  back.receiveShadow=true;
+  g.add(back);
+
+  // ── Glass side panels (premium tinted look, equipment glows through) ──
+  const glassMat = new THREE.MeshPhysicalMaterial({
+    color:0x0a0e16, roughness:0.08, metalness:0.0,
+    transmission:0.62, transparent:true, opacity:0.42,
+    ior:1.45, thickness:0.4, side:THREE.DoubleSide,
+  });
+  for(const sx of [-RW/2+post*0.5, RW/2-post*0.5]){
+    const side = new THREE.Mesh(new THREE.PlaneGeometry(RD-post*2,RH-0.06),glassMat);
+    side.position.set(sx,RH/2,0);
+    side.rotation.y = Math.PI/2;
+    g.add(side);
+  }
+
+  // ── Front mounting rails with U-perforations ──
+  const railGeo = new THREE.BoxGeometry(0.018,RH-0.06,0.05);
+  for(const x of[-RW/2+post+0.015, RW/2-post-0.015]){
     const r = new THREE.Mesh(railGeo, M.rail);
-    r.position.set(x,RH/2,RD/2-0.04);
+    r.position.set(x,RH/2,RD/2-0.06);
+    r.castShadow=true;
     g.add(r);
   }
 
-  // U-number slots (visual detail)
-  const slotMat = new THREE.MeshStandardMaterial({color:0x0c1020,roughness:0.8});
-  for(let u=0;u<42;u+=2){
-    const slot = new THREE.Mesh(new THREE.BoxGeometry(0.012,0.001,0.008),slotMat);
-    slot.position.set(-RW/2+0.038, u*U_H+U_H/2+0.06, RD/2-0.03);
-    g.add(slot);
-  }
-
-  // Bottom + top panels
-  const panelGeo = new THREE.BoxGeometry(RW,0.025,RD);
-  const botPanel = new THREE.Mesh(panelGeo,M.rackBody);
-  botPanel.position.set(0,0.012,0);
-  g.add(botPanel);
-  const topPanel = new THREE.Mesh(panelGeo,M.rackBody);
-  topPanel.position.set(0,RH+0.012,0);
-  g.add(topPanel);
-
-  // Perforated back panel (visual)
-  const backPanelMat = new THREE.MeshStandardMaterial({color:0x080a0e,roughness:0.7,metalness:0.5});
-  const backPanel = new THREE.Mesh(new THREE.BoxGeometry(RW-0.04,RH-0.04,0.01),backPanelMat);
-  backPanel.position.set(0,RH/2,-RD/2+0.005);
-  g.add(backPanel);
-
-  // Status LED on top
-  const stColor = rackData.status==='ok' ? 0x00ff88 : rackData.status==='warn' ? 0xff8c00 : 0xff3355;
-  const stLed = new THREE.Mesh(
-    new THREE.SphereGeometry(0.008,8,8),
-    new THREE.MeshStandardMaterial({color:stColor,emissive:new THREE.Color(stColor),emissiveIntensity:2.5})
+  // Invisible click target spanning the rack opening
+  const hit = new THREE.Mesh(
+    new THREE.BoxGeometry(RW-post*2, RH-0.06, RD-post*2),
+    new THREE.MeshBasicMaterial({visible:false})
   );
-  stLed.position.set(RW/2-0.03,RH+0.03,RD/2-0.03);
-  g.add(stLed);
+  hit.position.set(0,RH/2,0);
+  hit.userData = {type:'rack',rackId:rackData.id};
+  g.add(hit);
 
-  // Rack glow point light
-  const gl = new THREE.PointLight(0x00d4ff,0.6,2.0);
-  gl.position.set(0,RH*0.5,RD/2+0.2);
+  // ── Status beacon on top ──
+  const stColor = rackData.status==='ok' ? 0x00ff88 : rackData.status==='warn' ? 0xff8c00 : 0xff3355;
+  const beacon = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.012,0.012,0.02,12),
+    new THREE.MeshStandardMaterial({color:stColor,emissive:new THREE.Color(stColor),emissiveIntensity:2.4})
+  );
+  beacon.position.set(0,RH+0.045,0);
+  g.add(beacon);
+
+  // Soft interior glow so equipment reads against the dark
+  const gl = new THREE.PointLight(0xbfd4ff, 0.5, 2.2);
+  gl.position.set(0,RH*0.55,RD/2-0.3);
   g.add(gl);
 
   return g;
@@ -535,25 +548,40 @@ function buildRackFrame(rackData) {
 // ═══════════════════════════════════════════════════════
 function buildDevice(dev) {
   const g = new THREE.Group();
-  const DW=0.535, DD=0.26, h=U_H*dev.h;
+  const DW=0.555, DD=0.26, h=U_H*dev.h;
 
-  // Body
+  // Chassis body
   const bodyColor = dev.color || 0x101218;
   const isMetal = dev.type==='switch' || dev.type==='router';
   const bodyMat = new THREE.MeshStandardMaterial({
-    color:bodyColor, roughness:isMetal?0.22:0.65, metalness:isMetal?0.82:0.3
+    color:bodyColor, roughness:isMetal?0.3:0.6, metalness:isMetal?0.8:0.4
   });
   const body = new THREE.Mesh(new THREE.BoxGeometry(DW,h-0.002,DD),bodyMat);
-  body.castShadow=true;
+  body.castShadow=true; body.receiveShadow=true;
   body.userData = {type:'device', deviceId:dev.id, device:dev};
   g.add(body);
 
-  // Front face (slightly different shade, more detail)
-  const frontColor = new THREE.Color(bodyColor).multiplyScalar(1.6);
-  const fMat = new THREE.MeshStandardMaterial({color:frontColor,roughness:0.35,metalness:0.6});
-  const fFace = new THREE.Mesh(new THREE.BoxGeometry(DW-0.008,h-0.004,0.006),fMat);
-  fFace.position.z = DD/2+0.001;
+  // Bright brushed-metal faceplate so the rack reads as a stack of units
+  const plateTints = {
+    switch:0x9aa6b8, router:0xaab4c2, patch:0x2a2f3a, splitter:0x33373f,
+    receiver:0x3a3030, 'av-switch':0x33373f, server:0x40464f, nas:0x4a505c, ups:0x4a4a44,
+  };
+  const plateColor = plateTints[dev.type] || 0x444a55;
+  const fMat = new THREE.MeshStandardMaterial({
+    color:plateColor, roughness:0.32, metalness:0.85
+  });
+  const fFace = new THREE.Mesh(new THREE.BoxGeometry(DW-0.01,h-0.005,0.01),fMat);
+  fFace.position.z = DD/2+0.003;
+  fFace.castShadow=true;
   g.add(fFace);
+
+  // Thin dark seam top/bottom to separate stacked units
+  const seamMat = new THREE.MeshStandardMaterial({color:0x05070b,roughness:0.9});
+  for(const sy of [h/2-0.0015, -h/2+0.0015]){
+    const seam = new THREE.Mesh(new THREE.BoxGeometry(DW-0.01,0.003,0.012),seamMat);
+    seam.position.set(0,sy,DD/2+0.004);
+    g.add(seam);
+  }
 
   // Status LED
   const stColor = dev.status==='up' ? 0x00ff88 : dev.status==='warn' ? 0xff8c00 : 0xff3355;
@@ -561,7 +589,7 @@ function buildDevice(dev) {
     color:stColor, emissive:new THREE.Color(stColor), emissiveIntensity:2.2
   });
   const stLed = new THREE.Mesh(new THREE.SphereGeometry(0.0038,8,8),stMat);
-  stLed.position.set(DW/2-0.018, 0, DD/2+0.007);
+  stLed.position.set(DW/2-0.018, 0, DD/2+0.012);
   g.add(stLed);
 
   // Port indicators on front face
@@ -579,7 +607,7 @@ function buildDevice(dev) {
         roughness:0.2
       });
       const pm = new THREE.Mesh(new THREE.BoxGeometry(pSize,pSize*1.3,0.003),pMat);
-      pm.position.set(startX+i*pGap, 0, DD/2+0.004);
+      pm.position.set(startX+i*pGap, 0, DD/2+0.011);
       pm.userData = {type:'port',port};
       g.add(pm);
     }
@@ -592,7 +620,7 @@ function buildDevice(dev) {
     const phMat = new THREE.MeshStandardMaterial({color:0x1a2840,emissive:new THREE.Color(0x0a1828),emissiveIntensity:0.3,roughness:0.3,metalness:0.5});
     for(let c=0;c<cols;c++){
       const ph = new THREE.Mesh(new THREE.BoxGeometry(pw*0.55,h*0.45,0.009),phMat);
-      ph.position.set(-DW/2+0.012+c*pw+pw/2, 0, DD/2+0.003);
+      ph.position.set(-DW/2+0.012+c*pw+pw/2, 0, DD/2+0.010);
       g.add(ph);
     }
   }
@@ -602,14 +630,14 @@ function buildDevice(dev) {
     const grillMat = new THREE.MeshStandardMaterial({color:0x080a0e,roughness:0.9});
     for(let row=0;row<6;row++){
       const gr = new THREE.Mesh(new THREE.BoxGeometry(DW*0.55,0.003,0.005),grillMat);
-      gr.position.set(0, -h/2+h*(row+0.5)/7, DD/2+0.004);
+      gr.position.set(0, -h/2+h*(row+0.5)/7, DD/2+0.010);
       g.add(gr);
     }
     // Battery indicator
     const bMat = new THREE.MeshStandardMaterial({color:0x00ff88,emissive:new THREE.Color(0x00ff88),emissiveIntensity:1.5});
     for(let b=0;b<5;b++){
       const bSeg = new THREE.Mesh(new THREE.BoxGeometry(0.012,0.008,0.003),bMat);
-      bSeg.position.set(-DW/2+0.03+b*0.016, h*0.3, DD/2+0.005);
+      bSeg.position.set(-DW/2+0.03+b*0.016, h*0.3, DD/2+0.012);
       g.add(bSeg);
     }
   }
@@ -627,7 +655,7 @@ function buildDevice(dev) {
     // Display indicator
     const dispMat = new THREE.MeshStandardMaterial({color:0xff4400,emissive:new THREE.Color(0xff4400),emissiveIntensity:1.5});
     const disp = new THREE.Mesh(new THREE.BoxGeometry(0.06,0.015,0.002),dispMat);
-    disp.position.set(DW/2-0.06, 0, DD/2+0.005);
+    disp.position.set(DW/2-0.06, 0, DD/2+0.012);
     g.add(disp);
   }
 
@@ -636,7 +664,7 @@ function buildDevice(dev) {
     const logoMat = new THREE.MeshStandardMaterial({color:0xffffff,roughness:0.5});
     // Small logo square
     const logo = new THREE.Mesh(new THREE.BoxGeometry(0.02,0.01,0.002),logoMat);
-    logo.position.set(-DW/2+0.03,0,DD/2+0.006);
+    logo.position.set(-DW/2+0.03,0,DD/2+0.012);
     g.add(logo);
   }
 
@@ -685,10 +713,10 @@ function makeTube(pts, color, r=0.0028){
 }
 
 function addCableBundles(rackGroup, rackData) {
-  const RD=1.02, RH=42*U_H+0.12;
+  const RD=1.0, RH=42*U_H+0.14;
   // Tidy vertical cable management on the right side of the rack
   const colors=[0x3a78c8,0x00b4e0,0x00cc7a,0x3a78c8,0xe08030];
-  const railX = 0.235;
+  const railX = 0.255;
   for(let i=0;i<5;i++){
     const c=colors[i%colors.length];
     const xo = railX + i*0.006;
@@ -782,11 +810,11 @@ function buildScene(){
 
     rg.add(buildRackFrame(rack));
 
-    const RH=42*U_H+0.12, RD=1.02;
+    const RH=42*U_H+0.14, RD=1.0;
     for(const dev of rack.devices){
       const dm = buildDevice(dev);
-      const yPos = (dev.u-1)*U_H + dev.h*U_H/2 + 0.062;
-      dm.position.set(0, yPos, RD/2-0.145);
+      const yPos = (dev.u-1)*U_H + dev.h*U_H/2 + 0.05;
+      dm.position.set(0, yPos, 0.30);
       rg.add(dm);
       allDevices.push({mesh:dm, device:dev, rack});
     }
